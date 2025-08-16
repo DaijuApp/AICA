@@ -1,0 +1,312 @@
+body {
+  background-color: #d6cbb6;
+}
+
+div#top{
+  height: 2em;
+  display: none;
+  align-items: flex-end;
+}
+div#top textarea{
+  height: 1em;
+}
+.container {
+  display: flex;
+  flex-direction: row;
+  height: 95vh;
+}
+.container p{
+  margin: 0;
+}
+.left-section {
+  width: 0%;
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+  /* border-right: 1px solid black; */
+}
+.left-section .display-area:first-child {
+  flex: 0 0 calc(60% - 1em);
+  /* border-bottom: 1px solid black; */
+  overflow-y: auto;
+}
+.left-section .display-area:last-child {
+  flex: 0 0 calc(40% - 1em);
+  overflow-y: auto;
+}
+.left-section .display-area textarea{
+  box-sizing: border-box;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px - 2em);
+}
+.center-section {
+  width: 100%;
+  min-height: 400px;
+  /* padding: 5px; */
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+}
+.center-section .display-area {
+  width: 100%;
+}
+#clientSelect {
+  width: 100%;
+}
+
+/* アイコンのスタイル */
+.icon {
+  width: 31px; /* アイコンのサイズを調整 */
+  height: 36px;
+  vertical-align: middle; /* テキストと縦位置を揃える */
+  margin-right: 8px; /* アイコンとテキストの間に余白を追加 */
+}
+
+select {
+  width: calc(100% - 106px);
+  border-width: 1px;
+  border-radius: 10px;
+  min-height: 30px;
+  padding: 8px 8px 8px 8px;
+  margin: 5px 0% 5px 0px;
+  background-color: #fdf6e7;
+  font-size: medium;
+}
+
+.display-area {
+  width: 100%;
+  border-radius: 15px;
+  border-width: 1px;
+  border-color: #925425;
+  margin-bottom: 5px;
+}
+
+.display-area:first-child {
+  flex: 0 0 calc(60% - 1em);
+  /* border-bottom: 1px solid black; */
+  overflow-y: auto;
+}
+.display-area:last-child {
+  flex: 0 0 calc(40% - 1em);
+  overflow-y: auto;
+}
+.display-area textarea{
+  box-sizing: border-box;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px - 2em);
+}
+
+
+/* ラベルのスタイル */
+#exampleQuestions p {
+  color: #3e2723; /* ダークブラウンのテキスト色 */
+  display: flex;
+  align-items: center;
+  max-height: 100px;
+} 
+
+.top-buttons {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.top-buttons button {
+  background-color: #925425; /* Tan background for buttons */
+  color: #ffffff; /* Dark brown text */
+  border: none;
+  border-radius: 20px;
+  padding: 8px 12px;
+}
+
+.top-buttons button:hover {
+  background-color: #bc8f8f; /* Slightly darker shade on hover */
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.button-group button {
+  min-width: 48%;
+  background-color: #6aafb5; /* Tan background for buttons */
+  color: #ffffff; /* Dark brown text */
+  border: none;
+  border-radius: 20px;
+  padding: 8px 8px 8px 8px;
+  margin: 4px 4px 4px 4px;
+  font-size: medium;
+}
+.button-group button:hover {
+  background-color: #528387; /* Slightly darker shade on hover */
+}
+
+.inputFI {
+  display: inline;
+  width: calc(100%-16px);
+  min-height: 100px;
+  background-color: #fdf6e7;
+  border-color: #925425;
+  border-width: 1px;
+  border-radius: 15px;
+  padding: 8px 8px 8px 8px;
+  margin: 5px 0 5px;
+}
+
+.buttonContainer {
+  display: flex;
+  align-self: flex-end;
+}
+
+.buttonContainer button {
+  background-color: #6aafb5; /* Tan background for buttons */
+  color: #ffffff; /* Dark brown text */
+  border: none;
+  border-radius: 20px;
+  padding-left: 12px;
+  padding-right: 12px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 5px;
+}
+.buttonContainer button:hover {
+  background-color: #528387; /* Slightly darker shade on hover */
+}
+
+.bottom-buttons button {
+  background-color: #925425; /* Tan background for buttons */
+  color: #ffffff; /* Dark brown text */
+  border: none;
+  border-radius: 20px;
+  padding: 8px 12px;
+}
+
+.bottom-buttons button:hover {
+  background-color: #bc8f8f; /* Slightly darker shade on hover */
+}
+
+#exampleQuestions {
+  height: 100px;
+  overflow-y: auto;
+  /* border: 1px solid #ccc; */
+  padding: 5px 5px 5px 5px;
+  box-sizing: border-box;
+  background-color: #fdf6e7;  
+  border-width: 1px;
+  border-color: #925425;
+}
+
+#chatArea {
+  max-height: calc(60% - 0px - 1em); /* paddingの分を引いています */
+  min-height: 430px;
+  overflow-y: auto;
+  /* border: 1px solid #ccc; */
+  padding: 0px;
+  box-sizing: border-box;
+  background-color: #fdf6e7;
+}
+
+/* サーバーとユーザーからのメッセージのテキストエリアの基本スタイル */
+#chatArea textarea,
+#exampleQuestions textarea {
+  width: calc(100% - 4px);
+  resize: none;  /* リサイズを禁止 */
+  /* margin: 2px 2px 0 2px ;  ?* 上下のマージン */
+  /* padding: 4px; */
+  /* border: none; */
+  /* border: 1px solid #ddd; */
+  box-sizing: border-box;  /* ボーダーやパディングを要素の合計幅・高さに含める */
+  overflow: hidden;  /* スクロールを隠す */
+  border-radius: 15px;
+}
+
+/* サーバーからのメッセージのテキストエリアのスタイル */
+#chatArea textarea.AI {
+  width: 85%;
+  height: auto;
+  resize: none;  /* リサイズを禁止 */
+  overflow: hidden;  /* スクロールを隠す */
+  display: inline;
+  align-self:flex-start;
+  background-color: #fdf6e7;
+  border-width: 1px;
+  border-color: #925425;
+  margin-bottom: 5px;
+  margin-left: 5px;
+  padding: 10px 10px 10px 10px;
+  font-size: 1.3rem;
+  color: #3e2723;
+}
+
+/* ユーザーからのメッセージのテキストエリアのスタイル */
+#chatArea textarea.User {
+  width: 80%;
+  min-height:55px;
+  height: auto;
+  resize: none;  /* リサイズを禁止 */
+  overflow: hidden;  /* スクロールを隠す */
+  display: inline;
+  align-self:flex-end;
+  background-color: #fdf6e7;
+  border-width: 1px;
+  border-color: #6aafb5;
+  margin-top: 5px;
+  margin-left: 80px;
+  margin-right: 15px;
+  margin-bottom: 5px;
+  padding: 10px 10px 25px 10px;
+  /* font-style: normal; */
+  font-size: larger;
+}
+
+.right-section {
+  width: 0%;
+  padding: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+}
+#inputButtonArea{
+  width: 100%;
+}
+.input-row {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+.input-button-group {
+  width: 48%;
+  margin-bottom: 5px;
+}
+.input-field {
+  width: 100%;
+  overflow-y: auto;
+}
+#freeInputArea{
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-self: flex-end;
+}
+#freeInputArea p{
+  align-self: flex-start;
+}
+/*
+#freeInputArea textarea{
+  width: 100%;
+  height: 6em;
+}
+#freeInputArea {
+  align-self: flex-end;
+  display: flex;
+  gap: 0px;  ?* 任意: ボタン間のスペース *?
+}
+#freeInputArea button{
+  height:2em;
+}
+*/
+
+#bottom{
+  height: 0vh;
+}

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>クライアントデータの表示・更新</title>
+    <link rel="stylesheet" type="text/css" href="styles-smpl.css">
+
+    <style>
+        /* [既存のスタイルはそのまま] */
+        textarea {
+            width: 95%;
+            height: 3em;
+            margin: 0 0px;
+        }
+
+        #sessionDetails textarea {
+            height: 20em;
+        }
+
+        .tabs {
+            display: flex;
+            cursor: pointer;
+            margin: 10px 5px 0px 5px;
+        }
+
+        .tab {
+            padding: 10px;
+            background-color: lightgray;
+            margin-right: 5px;
+        }
+
+        .tab.active {
+            background-color: white;
+            border-bottom: 2px solid #000;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* カスタムダイアログのスタイル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 320px;
+        }
+
+        .modal-content input {
+            width: 90%;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        /* 入力欄 */
+        input {
+            width: calc(100% - 26px);
+            border-width: 1px;
+            border-radius: 10px;
+            min-height: 30px;
+            padding: 8px 8px 8px 8px;
+            margin: 5px 5px 5px 5px;
+            background-color: #fdf6e7;
+            font-size: medium;
+        }        
+        select {
+            width: calc(100% - 350px);
+            border-width: 1px;
+            border-radius: 10px;
+            min-height: 30px;
+            min-width: 200px;
+            padding: 8px 8px 8px 8px;
+            margin: 5px 5px 5px 5px;
+            background-color: #fdf6e7;
+            font-size: medium;
+        }
+        textarea {
+            width: calc(100% - 26px);
+            border-width: 1px;
+            border-radius: 10px;
+            min-height: 30px;
+            padding: 8px 8px 8px 8px;
+            margin: 5px 5px 5px 5px;
+            background-color: #fdf6e7;
+            font-size: medium;
+        }
+        /* ボタン */
+        button {
+            min-width: 18%;
+            background-color: #6aafb5;
+            /* Tan background for buttons */
+            color: #ffffff;
+            /* Dark brown text */
+            border: none;
+            border-radius: 20px;
+            padding: 8px 8px 8px 8px;
+            margin: 4px 10px 4px 4px;
+            font-size: medium;
+        }
+
+        button:hover {
+            background-color: #528387; /* Slightly darker shade on hover */
+        }
+        #back-btn {
+            background-color: #925425;
+            /* Tan background for buttons */
+            color: #ffffff;
+            /* Dark brown text */
+            border: none;
+            border-radius: 20px;
+            padding: 8px 25px;
+            font-size: medium;
+        }
+        #back-btn:hover {
+            background-color: #bc8f8f; /* Slightly darker shade on hover */
+        }
+    </style>
+
+
+</head>
+
+<body>
+
+    <h1>クライアントデータの表示・更新</h1>
+
+    <!-- クライアント選択 -->
+    <label for="clientDropdown">クライアント:</label>
+    <select id="clientDropdown" onchange="displayClientProfile()">
+        <option value="">クライアントを選択してください</option>
+    </select>
+    <button onclick="addNewClient()">クライアントの新規追加</button>
+
+    <!-- プロフィールとセッション部分をまとめた div -->
+    <div id="clientInfoSection" style="display: none;">
+        <!-- クライアントのEmailアドレス表示 -->
+        <h3>Emailアドレス</h3>
+        <input type="text" id="clientEmail"><br>
+        <!-- クライアントのPDFファイル用パスワード表示 -->
+        <h3>PDFファイル用パスワード</h3>
+        <input type="text" id="pdfPassword"><br>
+        <button onclick="saveClientEmailAndPassword()">上書き保存</button>
+
+        <!-- クライアントのプロフィール表示 -->
+        <h3>プロフィール</h3>
+        <textarea id="clientProfile"></textarea><br>
+        <button onclick="saveClientProfile()">上書き保存</button>
+
+        <!-- クライアントのメモ表示 -->
+        <h3>メモ</h3>
+        <textarea id="clientMemo"></textarea><br>
+        <button onclick="saveClientMemo()">上書き保存</button>
+
+        <!-- セッション選択 -->
+        <h3>これまでのセッション情報</h3>
+        <label for="sessionDropdown">セッション日時:</label>
+        <select id="sessionDropdown" onchange="displaySessionData()">
+            <option value="">セッションを選択してください</option>
+        </select>
+
+        <!-- タブ全体をラップする div を追加 -->
+        <div id="sessionDetails" style="display: none;">
+            <!-- セッションのタブ -->
+            <div class="tabs">
+                <div class="tab active" id="summary-tab" onclick="switchTab('summary')">要約</div>
+                <div class="tab" id="feedback-tab" onclick="switchTab('feedback')">コーチングフィードバック</div>
+                <div class="tab" id="conversation-tab" onclick="switchTab('conversation')">会話の文字起こし</div>
+            </div>
+
+            <!-- セッションのデータ表示 -->
+            <div id="summary" class="tab-content active">
+                <!-- <h3>要約</h3> -->
+                <textarea id="summaryData"></textarea>
+            </div>
+            <div id="feedback" class="tab-content">
+                <!-- <h3>コーチングフィードバック</h3> -->
+                <textarea id="feedbackData"></textarea>
+            </div>
+            <div id="conversation" class="tab-content">
+                <!-- <h3>会話の文字起こし</h3> -->
+                <textarea id="conversationData"></textarea>
+            </div>
+            <button onclick="saveSessionData()">上書き保存</button>
+        </div>
+    </div>
+
+    <!-- 新しいクライアント追加用モーダル -->
+    <div id="newClientModal" class="modal">
+        <div class="modal-content">
+            <h3>新しいクライアントを追加</h3>
+            <input type="text" id="newClientNameInput" placeholder="クライアント名を入力してください">
+            <input type="email" id="newClientEmailInput" placeholder="Emailアドレスを入力してください">
+            <input type="text" id="newClientPasswordInput" placeholder="PDFファイル用パスワードを入力してください">
+            <button onclick="saveNewClient()">追加</button>
+            <button onclick="closeNewClientDialog()">キャンセル</button>
+        </div>
+    </div>
+    <div id="footer" class="bottom-buttons"></div>
+    <button id="back-btn">メイン画面に戻る</button></div>
+    <script src="common.js"></script>
+    <script>
+        window.electronAPI.onPageData((data) => {
+            window.AICAData = deserializeAICAData(data);
+            // データを使用する処理
+        });
+        // 準備完了を通知
+        //window.electronAPI.rendererReady();
+
+        window.isRunning = false;
+        window.currentHtml = "renew_clientdata";
+        window.onload = function () {
+            loadXMLData(populateClientDropdown);
+        };
+        let sessionData = {};     // セッションデータを保持
+        // タブ切り替え
+        function switchTab(tabName) {
+            // すべてのタブコンテンツを非表示にする
+            const tabs = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove("active"); // アクティブクラスを削除して非表示
+            }
+
+            // 指定されたタブのコンテンツを表示する
+            const activeTabContent = document.getElementById(tabName);
+            if (activeTabContent) {
+                activeTabContent.classList.add("active"); // アクティブクラスを追加して表示
+            }
+
+            // すべてのタブボタンからアクティブクラスを削除
+            const tabButtons = document.getElementsByClassName("tab");
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove("active");
+            }
+
+            // 押されたタブボタンにアクティブクラスを追加
+            const activeTabButton = document.getElementById(tabName + "-tab");
+            if (activeTabButton) {
+                activeTabButton.classList.add("active");
+            }
+        }
+        // 画面切り替え
+        document.getElementById('back-btn').addEventListener('click', () => {
+            window.electronAPI.switchHtmlWithData('ui-smpl.html', serializeAICAData(window.AICAData));
+        });
+    </script>
+
+</body>
+
+</html>

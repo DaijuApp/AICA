@@ -1,0 +1,278 @@
+<!-- 途中：
+Userの選択→xmlの更新 未作成
+prompt読み込まなくなったので、不要なものが色々残ってる。 -->
+<!-- @01. 追加修正 2024.10.28 traetal.systems -->
+<!-- @02. local音声サーバーからの受信に変更 2025.04.03 traetal.systems -->
+<!-- @03. @02に伴い、zoom Meeting IDの廃止 2025.07.31 traetal.systems -->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8"><!--@01a-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><!--@01a-->
+  <link rel="stylesheet" type="text/css" href="styles-smpl.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!--@01a-->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <!--@02d <script src="./socket.io.js"></script> -->
+
+</head>
+
+<body>
+  <div id="top">
+    <button id="start" style="display: none;">Start recording</button>
+    <button id="stop" style="display: none;">Stop recording</button>
+    <button id="summary" style="display: none;">Summary</button>
+  </div>
+  <div class="container">
+    <div class="left-section">
+      <div class="display-area" id="display-area1">
+        <p>要約</p>
+        <textarea class="display-area" id="summaryArea"></textarea>
+      </div>
+      <div class="display-area" id="display-area2">
+        <p>リアルタイム文字起こし</p>
+        <textarea class="display-area" id="transcriprionArea"></textarea>
+      </div>
+    </div>
+    <div class="center-section">
+      <div id="clientSelect">
+        <label for="clientDropdown">クライアント:</label>
+        <select id="clientDropdown" onchange="startNewSession()">
+          <option value="">クライアントを選択してセッションを開始する</option>
+        </select>
+      </div>
+      <div class="question-header">
+        <img src="robo-aica.png" alt="ロボット" class="icon">
+        <span>こんな質問はいかが？</span>
+      </div>
+      <div class="display-area" id="exampleQuestions">
+        <div id="exampleQuestionsList">
+          <!--<p>例: この課題についての詳細は？</p>-->
+          <!--<p>例: 他に解決策はありますか？</p>-->
+        </div>
+      </div>
+      <div class="question-header">
+        <img src="robo-aica.png" alt="ロボット" class="icon">
+        <span>AICAとのチャット</span>
+      </div>
+
+      <div class="display-area" id="chatArea">
+      </div>
+      <div id="inputButtonArea">
+        <div class="top-buttons">
+          <button id="regeberatetButton">
+            <i class="fa-solid fa-repeat"></i>
+          </button>
+          <button id="topicResetButton">話題リセット</button>
+          <!-- <button id="feedback">セッション完了 振り返り</button> -->
+        </div>
+        <!--<p>AICA 1クリックアドバイス</p>-->
+        <div class="button-group">
+          <button id="solution" contenteditable="true">解決策</button>
+          <button id="aspect" contenteditable="true">その他の視点</button>
+          <button id="uplift" contenteditable="true">心を軽くするには？</button>
+          <button id="questionNow" contenteditable="true">いますべき質問</button>
+        </div>
+        <div id="freeInputArea">
+          <!--<p>AICAへの質問入力</p>-->
+          <!-- <textarea id="inputFI-0" class="inputFI" style="display: none;"></textarea>
+              <textarea id="inputFI-1" class="inputFI" style="display: none;"></textarea>
+              <textarea id="inputFI-2" class="inputFI" style="display: none;"></textarea>
+              <textarea id="inputFI-3" class="inputFI" style="display: none;"></textarea> -->
+          <textarea id="inputFIFoot" class="inputFI"></textarea>
+          <div class="buttonContainer">
+            <!--<button id="freeInputButton">送信(Enter)</button>-->
+            <button id="freeInputButton"><i class="fa-solid fa-angles-up"></i></button>
+          </div>
+        </div>
+        <!-- ↓画面切り替え -->
+        <div class="bottom-buttons" id="switch">
+          <button id="switch-btn-userdata">マイページへ</button>
+          <button id="switch-btn-clientdata">クライアントデータ編集画面へ</button>
+          <button id="switch-btn-finish">セッション完了時用画面へ</button>
+        </div>
+      </div>
+    </div>
+    <div class="right-section">
+    </div>
+  </div>
+  <div id="bottom">
+  </div>
+
+  <script src="common.js"></script>
+  <script>
+    //@03d let onPageDataFired = false;
+    //@03d window.electronAPI.onPageData((data) => {
+    //@03d   onPageDataFired = true;
+    //@03d   window.AICAData = deserializeAICAData(data);
+    //@03d   // データを使用する処理
+    //@03d   console.log("AICAData.roomId:" + window.AICAData.roomId);
+    //@03d   checkRoomId();
+    //@03d });
+
+    //@03d document.addEventListener('DOMContentLoaded', () => {
+    //@03d   // onPageDataを待つために、setTimeoutで少し後に確認
+    //@03d   setTimeout(() => {
+    //@03d     if (!onPageDataFired) {
+    //@03d       // ここに到達した時点で onPageData が呼ばれていない→ミーティングIDを聞くダイアログ
+    //@03d       checkRoomId();
+    //@03d     }
+    //@03d   }, 300);
+    //@03d });
+    // サーバーのURLとパスを指定して接続します
+    //@02d const soc = io.connect('https://robo-aica.com');
+    //@01d const roomId = prompt("Please enter your Meeting ID:");
+    //@01m.start
+
+    // メッセージIDとメッセージ内容のマッピングを保持するオブジェクト
+    const messages = {}; //テスト用に一時的にコメントアウトにしている
+
+    // 
+    // WebSocketサーバーの URL（C# 側で起動している wsServer のエンドポイント）
+    const ws = new WebSocket("ws://localhost:8181/ws/");
+
+    ws.onopen = () => {
+      console.log("WebSocket connection established");
+    };
+
+    ws.onmessage = (event) => {
+      console.log("Received message:", event.data);
+      try {
+        // 受信した JSON をパース
+        const data = JSON.parse(event.data);
+        const messageId = data.msg_id;
+        const userName = data.usr_name;
+        const content = data.content;
+
+        // メッセージのマッピングを更新
+        messages[messageId] = { userName, content };
+
+        // 表示内容を更新する関数（既存の updateDisplay() を利用）
+        updateDisplay();
+      } catch (e) {
+        console.error("Error parsing message:", e);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
+
+    //@03dfunction checkRoomId() {
+    //@03d  if (typeof window.AICAData.roomId === 'string') {
+    //@03d    let roomId = window.AICAData.roomId;
+    //@03d    console.log("roonId:" + roomId);
+    //@03d    soc.emit('join room', roomId);
+    //@03d  } else {
+    //@03d    console.log("roonIdを新規指定する必要があります");
+    //@03d    (async () => {
+    //@03d      let roomId = await window.electronAPI.showMeetingIdPrompt();
+    //@03d      roomId = roomId.replace(/ /g, "");
+    //@03d      if (roomId) {
+    //@03d        console.log("roomId=", roomId);
+    //@03d        //@02d soc.emit('join room', roomId);
+    //@03d        window.AICAData.roomId = roomId;
+    //@03d      }
+    //@03d      else {
+    //@03d        alert("You must enter a Meeting ID to proceed.");
+    //@03d        location.reload();
+    //@03d      }
+    //@03d    })(); //@01m.finish
+    //@03d  }
+    //@03d}
+
+    function updateDisplay() {
+      // messagesオブジェクトの内容に基づいて表示を更新
+      const displayArea = document.getElementById('display-area2');
+      displayArea.innerHTML = ''; // 表示内容を初期化
+
+      for (const { userName, content } of Object.values(messages)) {
+        // 各メッセージのユーザー名とメッセージ内容を表示
+        const messageElement = document.createElement('div');
+        messageElement.textContent = `${userName}: ${content}`;
+        displayArea.appendChild(messageElement);
+      }
+      displayArea.scrollTop = displayArea.scrollHeight;
+    }
+
+    window.currentHtml = "ui-smpl";
+    loadXMLData(populateClientDropdown);
+    // freeImputArea
+    async function startNewSession() {
+      console.log("startNewSession");
+      await deleteEmptySession();
+      window.isRunning = true;
+      setSelectedClient();
+      addNewSession();
+      constantSaveTranscription();
+    }
+
+
+    // 自由入力欄エンターキーで送信
+    document.addEventListener('DOMContentLoaded', function () {
+      var textarea = document.getElementById('inputFIFoot');
+      var button = document.getElementById('freeInputButton');
+
+      var isComposing = false; // 日本語入力の変換中かどうかを判断する変数
+
+      textarea.addEventListener('compositionstart', function () {
+        isComposing = true; // 変換開始
+      });
+
+      textarea.addEventListener('compositionend', function () {
+        isComposing = false; // 変換終了
+      });
+
+      textarea.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !isComposing) {
+          if (event.shiftKey) {
+            // Shift + Enterで改行
+            return;
+          } else {
+            // Enterのみでボタンが押される
+            event.preventDefault();
+            button.click();
+          }
+        }
+      });
+    });
+
+
+
+    document.getElementById('switch-btn-userdata').addEventListener('click', () => {
+      switchTo('renew_userdata.html');
+    });
+    document.getElementById('switch-btn-clientdata').addEventListener('click', () => {
+      switchTo('renew_clientdata.html');
+    });
+    document.getElementById('switch-btn-finish').addEventListener('click', () => {
+      switchTo('finish.html');
+    });
+
+    function switchTo(htmlFileName) {
+      deleteEmptySession();
+      window.electronAPI.switchHtmlWithData(htmlFileName, dataToSwitch());
+    }
+
+    function dataToSwitch() {
+      window.AICAData.allTranscription = getTranscription("all");
+      window.AICAData.mainTranscription = getTranscription("main");
+      return serializeAICAData(window.AICAData);
+    }
+
+    //@04a.preload経由で起動／停止イベントをログに出力する
+    window.electronAPI.onSpeechRecognitionStatus(data => {
+      console.log(`[SpeechService] status=${data.status}, service=${data.service}`);
+    });
+
+  </script>
+  <script src="./transcript-processor.js"></script>
+</body>
+
+</html>

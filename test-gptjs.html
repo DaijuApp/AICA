@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPT Test Streaming</title>
+    <script>
+        async function sendGPTRequest() {
+            const prompt = document.getElementById("prompt").value;
+            
+            const response = await fetch('https://ep.robo-aica.com/gpt/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'speed',  // ダミーのモデル指定
+                    mode: 'freeAdvise',  // ダミーのモード指定
+                    userName: 'Test Coach',  // ダミーのユーザー名
+                    userProfile: 'Professional coach',  // ダミーのプロフィール
+                    clientName: 'Test Client',  // ダミーのクライアント名
+                    clientProfile: 'Client profile description',  // ダミーのクライアントプロフィール
+                    transcription: prompt,  // プロンプトを文字起こしデータとして送信
+                    adviceRequirement: prompt,  // プロンプトを相談内容として送信
+                    conversation_history: []  // 会話履歴を空に設定
+                })
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let done = false;
+            let resultContainer = document.getElementById("result");
+
+            resultContainer.textContent = '';  // Clear previous result
+
+            while (!done) {
+                const { value, done: readerDone } = await reader.read();
+                done = readerDone;
+
+                // Decode the chunk and append it to the result container
+                const chunk = decoder.decode(value, { stream: !done });
+                resultContainer.textContent += chunk;
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>GPT Test Streaming Interface</h1>
+    <textarea id="prompt" placeholder="Enter your prompt here" rows="4" cols="50"></textarea>
+    <br>
+    <button onclick="sendGPTRequest()">Send to GPT</button>
+
+    <h2>GPT Response:</h2>
+    <pre id="result"></pre>
+</body>
+</html>

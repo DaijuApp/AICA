@@ -1,0 +1,168 @@
+<!-- 途中：
+updateUserName、updateUserProfile、updateUserEmailのAPI　未作成（main.js, preload.js）
+renew_clientdata.htmlでのユーザーデータのアップデートとやり方がちがう -->
+
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>マイページ</title>
+
+    <style>
+        body {
+            background-color: #d6cbb6;
+            font-size: medium;
+        }
+
+        h1{
+            text-align: center;
+        }
+        input {
+            width: 70%;
+            border-width: 1px;
+            border-radius: 10px;
+            min-height: 30px;
+            padding: 8px 8px 8px 8px;
+            margin: 5px 5px 5px 5px;
+            background-color: #fdf6e7;
+            font-size: medium;
+        }
+
+        .editable-field {
+            display: block;
+            align-items: center;
+            font-size: medium;
+        }
+
+        .editable-field button {
+            min-width: 18%;
+            background-color: #6aafb5;
+            /* Tan background for buttons */
+            color: #ffffff;
+            /* Dark brown text */
+            border: none;
+            border-radius: 20px;
+            padding: 8px 8px 8px 8px;
+            margin: 4px 10px 4px 4px;
+            font-size: medium;
+        }
+        .editable-field button:hover {
+            background-color: #528387; /* Slightly darker shade on hover */
+        }
+
+        div {
+            padding: 10px 0;
+        }
+
+        #container {
+            padding: 15px;
+        }
+
+        label {
+            display: block;
+            width: 100%;
+        }
+        .bottom-buttons {
+            margin: 24px 0 0 0;
+        text-align: center;
+        }
+        .bottom-buttons button {
+            background-color: #925425;
+            /* Tan background for buttons */
+            color: #ffffff;
+            /* Dark brown text */
+            border: none;
+            border-radius: 20px;
+            padding: 8px 25px;
+            font-size: medium;
+        }
+        .bottom-buttons button:hover {
+            background-color: #bc8f8f; /* Slightly darker shade on hover */
+        }
+
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <h1>マイページ</h1>
+        <div class="editable-field">
+            <label for="userName">ユーザー名: </label>
+            <input type="text" id="userName" value="">
+            <button id="update-name-btn">変更</button>
+        </div>
+        <div class="editable-field">
+            <label for="userEmail">Emailアドレス: </label>
+            <input type="text" id="userEmail" value="">
+            <button id="update-email-btn">変更</button>
+        </div>
+        <div class="editable-field">
+            <label for="userProfile">ユーザープロフィール（簡潔に）: </label>
+            <input type="text" id="userProfile" value="">
+            <button id="update-userProfile-btn">変更</button>
+        </div>
+        <div class="bottom-buttons">
+            <button id="back-btn">メイン画面に戻る</button>
+        </div>
+    </div>
+
+    <script src="common.js"></script>
+    <script>
+
+        // 準備完了を通知
+        // window.electronAPI.rendererReady();
+        window.electronAPI.onPageData((data) => {
+            window.AICAData = deserializeAICAData(data);
+            console.log(window.AICAData.roomId);
+        });
+        window.currentHtml = "renew_userdata";
+        window.isRunning = false;
+        // ページ読み込み時にユーザー情報をロード
+        loadXMLData(displayUserData);
+
+
+        // ユーザー名の変更ボタンの処理
+        document.getElementById('update-name-btn').addEventListener('click', async () => {
+            const updatedName = document.getElementById('userName').value;
+
+            const result = await updateUserName(updatedName);
+            if (result.status === 'success') {
+                alert('ユーザー名が更新されました。');
+            } else {
+                alert('ユーザー名の更新に失敗しました。');
+            }
+        });
+
+        // Emailアドレスの変更ボタンの処理
+        document.getElementById('update-email-btn').addEventListener('click', async () => {
+            const updatedEmail = document.getElementById('userEmail').value;
+            const result = await updateUserEmail(updatedEmail);
+            if (result.status === 'success') {
+                alert('Emailアドレスが更新されました。');
+            } else {
+                alert('Emailアドレスの更新に失敗しました。');
+            }
+        });
+
+        // userProfileの変更ボタンの処理
+        document.getElementById('update-userProfile-btn').addEventListener('click', async () => {
+            const updatedUserProfile = document.getElementById('userProfile').value;
+            const result = await updateUserProfile(updatedUserProfile);
+            if (result.status === 'success') {
+                alert('プロフィールが更新されました。');
+            } else {
+                alert('プロフィールの更新に失敗しました。');
+            }
+        });
+
+        // メイン画面に戻るボタンの処理（元のコードと同様）
+        document.getElementById('back-btn').addEventListener('click', () => {
+            window.electronAPI.switchHtmlWithData('ui-smpl.html', serializeAICAData(window.AICAData));
+        });
+
+
+    </script>
+</body>
+
+</html>

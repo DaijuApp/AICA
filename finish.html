@@ -1,0 +1,174 @@
+<!-- 
+・clientsdata.xmlでSelectedClientのemailアドレスを用いて、選択されたクライアント名を特定し、それを表示する。
+・そのクライアントの最新のセッションデータのうち、要約をテキストボックスに表示する。
+・そのテキストボックスは編集と上書き保存が可能。
+・「クライアントにメール送信する」というボタンを表示。
+・メイン画面への遷移ボタンを表示。
+・「クライアントにメール送信する」というボタンが押されたら、まず要約のテキストをPDFファイルにする。
+・PDFファイルができたら、それをメール送信するためのサーバーサイドプログラムへ送信する。
+　サーバーサイドプログラムは以下のように情報を受け取り、また、PDFファイルを受け取る。
+----------
+$recipient_email = filter_input(INPUT_POST, 'recipient_email', FILTER_VALIDATE_EMAIL);
+$sender_name_raw = filter_input(INPUT_POST, 'sender_name', FILTER_SANITIZE_SPECIAL_CHARS);
+$recipient_name_raw = filter_input(INPUT_POST, 'recipient_name', FILTER_SANITIZE_SPECIAL_CHARS);
+$password = $_POST['password'] ?? '';
+---------- -->
+<!-- finish.html -->
+
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>完了処理</title>
+    <link rel="stylesheet" type="text/css" href="styles-smpl.css">
+
+    <style>
+        html, body{
+            height:100%;
+        }
+        textarea {
+            width: calc(100% - 26px);
+            height: calc(50% - 300px);
+            min-height: 50px;
+            border-width: 1px;
+            border-radius: 10px;
+            padding: 8px 8px 8px 8px;
+            margin: 5px 5px 5px 5px;
+            background-color: #fdf6e7;
+            font-size: medium;
+        }
+        /* ボタン */
+        button {
+            min-width: 18%;
+            background-color: #6aafb5;
+            /* Tan background for buttons */
+            color: #ffffff;
+            /* Dark brown text */
+            border: none;
+            border-radius: 20px;
+            padding: 8px 8px 8px 8px;
+            margin: 4px 10px 4px 4px;
+            font-size: medium;
+        }
+
+        button:hover {
+            background-color: #528387; /* Slightly darker shade on hover */
+        }
+        #back-btn {
+            background-color: #925425;
+            /* Tan background for buttons */
+            color: #ffffff;
+            /* Dark brown text */
+            border: none;
+            border-radius: 20px;
+            padding: 8px 25px;
+            font-size: medium;
+        }
+        #back-btn:hover {
+            background-color: #bc8f8f; /* Slightly darker shade on hover */
+        }
+    </style>
+</head>
+
+<body>
+    <h1>完了処理</h1>
+    <p>クライアント名: <span id="clientName"></span></p>
+    <h2>セッションのまとめ</h2>
+    <p>デモ用にあえて話していない情報も含めて表示しています</p>
+    <textarea id="clientRevisionTextArea"></textarea><br>
+    <button id="save-btn">上書き保存</button>
+    <button id="send-email-btn">クライアントにメール送信する</button>
+    <h2>セッションフィードバック</h2>
+    <p>デモ用にあえて話していない情報も含めて表示しています</p>
+    <textarea id="coachingFeedback"></textarea><br>
+    <button id="back-btn">メイン画面に戻る</button>
+    <script src="./transcript-processor.js"></script>
+    <script src="common.js"></script>
+
+    <script>
+        window.electronAPI.onPageData((data) => {
+            // デシリアライズ関数を使用
+            window.AICAData = deserializeAICAData(data);
+
+            // データの確認
+            if (window.AICAData.xmlData) {
+                // xmlData を使用した処理
+            } else {
+                console.warn('xmlData is null');
+            }
+
+            if (window.AICAData.sessionDataXML) {
+                // sessionXML を使用した処理
+            } else {
+                console.warn('sessionDataXML is null');
+            }
+
+            // その他の処理を続行
+            // クライアント情報をロード
+            findLatestSessionClientData(afterFindLastSession);
+
+        });
+        // 準備完了を通知
+        //window.electronAPI.rendererReady();
+        window.currentHtml = "finish";
+        window.isRunning = false;
+        function afterFindLastSession() {
+            displayLastSelectedUserData();
+            getUserRevision();
+            getFeedback();
+        }
+
+
+        // 上書き保存ボタンの処理
+        document.getElementById('save-btn').addEventListener('click', async () => {
+            if (window.clientInfo) {
+                const summaryText = document.getElementById('clientRevisionTextArea').value;
+                window.sessionDataXML.getElementsByTagName('Summary')[0].textContent = summaryText;
+
+                // XMLを文字列に変換
+                const serializer = new XMLSerializer();
+                const sessionXMLString = serializer.serializeToString(window.sessionDataXML);
+
+                // セッションデータを保存
+                const result = await window.electronAPI.saveSession(window.clientInfo.sessionFilePath, sessionXMLString);
+
+                if (result.status === 'success') {
+                    alert('セッションデータが保存されました。');
+                } else {
+                    alert('セッションデータの保存に失敗しました。');
+                }
+            }
+        });
+
+        // メール送信ボタンの処理
+        document.getElementById('send-email-btn').addEventListener('click', async () => {
+            alert('メールを送信する準備をしています。')
+            if (window.AICAData.clientInfo) {
+                const sessionDateTime = encodeFileName(window.AICAData.clientInfo.sessionDateTime);
+                const summaryText = document.getElementById('clientRevisionTextArea').value;
+                const password = window.AICAData.clientInfo.password;
+                const recipientEmail = window.AICAData.clientInfo.email;
+                const senderName = window.AICAData.userName;
+                const recipientName = window.AICAData.clientInfo.name;
+                const outputText = 'コーチングセッションの要約　（日付：' + sessionDateTime.slice(0, 10) + '）\n\n\n' + summaryText;
+                const result = await window.electronAPI.createAndSendPDF(outputText, sessionDateTime, password, recipientEmail, senderName, recipientName);
+
+                if (result.status === 'success') {
+                    alert('メールが送信されました。');
+                } else {
+                    alert('メールの送信に失敗しました。');
+                }
+            }
+        });
+
+        // メイン画面に戻るボタンの処理
+
+        document.getElementById('back-btn').addEventListener('click', () => {
+            window.electronAPI.switchHtmlWithData('ui-smpl.html', serializeAICAData(window.AICAData));
+        });
+
+    </script>
+</body>
+
+</html>
