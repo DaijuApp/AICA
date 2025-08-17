@@ -38,7 +38,8 @@ function updateMarkdownPreview(textId, previewId) {
     const textarea = document.getElementById(textId);
     const preview = document.getElementById(previewId);
     if (!textarea || !preview) return;
-    preview.innerHTML = marked.parse(textarea.value);
+    const html = marked.parse(textarea.value);
+    preview.innerHTML = window.DOMPurify ? DOMPurify.sanitize(html) : html;
 }
 
 //#region 全体的なデータの準備
