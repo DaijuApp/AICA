@@ -304,16 +304,6 @@ ipcMain.on('switch-html', (event, page) => {
     }
 });
 
-ipcMain.on('switch-html-with-data', (event, page, data) => {
-    const window = BrowserWindow.getFocusedWindow();
-    if (window) {
-        window.loadFile(page).then(() => {
-            // ページがロードされた後にデータを送信
-            window.webContents.send('page-data', data);
-        });
-    }
-});
-
 ////////////////////////////
 //#region ↓↓↓↓　PDF操作　↓↓↓↓　
 ipcMain.handle('create-and-send-pdf', async (event, pdfContent, date, password, recipientEmail, senderName, recipientName) => {

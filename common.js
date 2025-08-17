@@ -33,12 +33,6 @@ function encodeFileName(str) {
 }
 
 //#region 全体的なデータの準備
-// 画面遷移時にデータを取得
-window.electronAPI.onPageData((data) => {
-    console.log('Received data:', data);
-    window.AICAData = data;
-});
-
 // XMLデータをロード
 function loadXMLData(callback = () => { }) {
     window.electronAPI.loadXML()
@@ -125,6 +119,17 @@ function deserializeAICAData(data) {
 
     return data;
 }
+
+// localStorageからデータを復元
+const storedAICAData = localStorage.getItem('AICAData');
+if (storedAICAData) {
+    try {
+        window.AICAData = deserializeAICAData(JSON.parse(storedAICAData));
+    } catch (e) {
+        console.error('Failed to parse AICAData from localStorage:', e);
+    }
+}
+
 //#endregion 全体的なデータの準備
 
 //#region ユーザー（コーチ）のデータ

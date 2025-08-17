@@ -103,24 +103,6 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
 
   <script src="common.js"></script>
   <script>
-    //@03d let onPageDataFired = false;
-    //@03d window.electronAPI.onPageData((data) => {
-    //@03d   onPageDataFired = true;
-    //@03d   window.AICAData = deserializeAICAData(data);
-    //@03d   // データを使用する処理
-    //@03d   console.log("AICAData.roomId:" + window.AICAData.roomId);
-    //@03d   checkRoomId();
-    //@03d });
-
-    //@03d document.addEventListener('DOMContentLoaded', () => {
-    //@03d   // onPageDataを待つために、setTimeoutで少し後に確認
-    //@03d   setTimeout(() => {
-    //@03d     if (!onPageDataFired) {
-    //@03d       // ここに到達した時点で onPageData が呼ばれていない→ミーティングIDを聞くダイアログ
-    //@03d       checkRoomId();
-    //@03d     }
-    //@03d   }, 300);
-    //@03d });
     // サーバーのURLとパスを指定して接続します
     //@02d const soc = io.connect('https://robo-aica.com');
     //@01d const roomId = prompt("Please enter your Meeting ID:");
@@ -257,7 +239,8 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
 
     function switchTo(htmlFileName) {
       deleteEmptySession();
-      window.electronAPI.switchHtmlWithData(htmlFileName, dataToSwitch());
+      localStorage.setItem('AICAData', JSON.stringify(dataToSwitch()));
+      window.electronAPI.switchHtml(htmlFileName);
     }
 
     function dataToSwitch() {

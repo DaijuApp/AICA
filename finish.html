@@ -87,30 +87,25 @@ $password = $_POST['password'] ?? '';
     <script src="common.js"></script>
 
     <script>
-        window.electronAPI.onPageData((data) => {
-            // デシリアライズ関数を使用
-            window.AICAData = deserializeAICAData(data);
+        window.AICAData = deserializeAICAData(JSON.parse(localStorage.getItem('AICAData') || '{}'));
 
-            // データの確認
-            if (window.AICAData.xmlData) {
-                // xmlData を使用した処理
-            } else {
-                console.warn('xmlData is null');
-            }
+        // データの確認
+        if (window.AICAData.xmlData) {
+            // xmlData を使用した処理
+        } else {
+            console.warn('xmlData is null');
+        }
 
-            if (window.AICAData.sessionDataXML) {
-                // sessionXML を使用した処理
-            } else {
-                console.warn('sessionDataXML is null');
-            }
+        if (window.AICAData.sessionDataXML) {
+            // sessionXML を使用した処理
+        } else {
+            console.warn('sessionDataXML is null');
+        }
 
-            // その他の処理を続行
-            // クライアント情報をロード
-            findLatestSessionClientData(afterFindLastSession);
+        // その他の処理を続行
+        // クライアント情報をロード
+        findLatestSessionClientData(afterFindLastSession);
 
-        });
-        // 準備完了を通知
-        //window.electronAPI.rendererReady();
         window.currentHtml = "finish";
         window.isRunning = false;
         function afterFindLastSession() {
@@ -165,7 +160,8 @@ $password = $_POST['password'] ?? '';
         // メイン画面に戻るボタンの処理
 
         document.getElementById('back-btn').addEventListener('click', () => {
-            window.electronAPI.switchHtmlWithData('ui-smpl.html', serializeAICAData(window.AICAData));
+            localStorage.setItem('AICAData', JSON.stringify(serializeAICAData(window.AICAData)));
+            window.electronAPI.switchHtml('ui-smpl.html');
         });
 
     </script>

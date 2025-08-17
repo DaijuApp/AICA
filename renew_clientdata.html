@@ -216,10 +216,7 @@
     <button id="back-btn">メイン画面に戻る</button></div>
     <script src="common.js"></script>
     <script>
-        window.electronAPI.onPageData((data) => {
-            window.AICAData = deserializeAICAData(data);
-            // データを使用する処理
-        });
+        window.AICAData = deserializeAICAData(JSON.parse(localStorage.getItem('AICAData') || '{}'));
         // 準備完了を通知
         //window.electronAPI.rendererReady();
 
@@ -257,7 +254,8 @@
         }
         // 画面切り替え
         document.getElementById('back-btn').addEventListener('click', () => {
-            window.electronAPI.switchHtmlWithData('ui-smpl.html', serializeAICAData(window.AICAData));
+            localStorage.setItem('AICAData', JSON.stringify(serializeAICAData(window.AICAData)));
+            window.electronAPI.switchHtml('ui-smpl.html');
         });
     </script>
 
