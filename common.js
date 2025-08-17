@@ -32,6 +32,15 @@ function encodeFileName(str) {
         .replace(/[/\\?%*:|"<>]/g, '_');
 }
 
+// Markdown文字列をHTMLに変換して表示する
+function updateMarkdownPreview(textId, previewId) {
+    if (typeof marked === 'undefined') return;
+    const textarea = document.getElementById(textId);
+    const preview = document.getElementById(previewId);
+    if (!textarea || !preview) return;
+    preview.innerHTML = marked.parse(textarea.value);
+}
+
 //#region 全体的なデータの準備
 // 画面遷移時にデータを取得
 window.electronAPI.onPageData((data) => {
@@ -611,6 +620,8 @@ function displaySessionData() {
         document.getElementById("conversationData").value = "";
         document.getElementById("summaryData").value = "";
         document.getElementById("feedbackData").value = "";
+        updateMarkdownPreview('summaryData','summaryDataPreview');
+        updateMarkdownPreview('feedbackData','feedbackDataPreview');
         return;
     }
 
@@ -633,8 +644,10 @@ function displaySessionData() {
                 document.getElementById("conversationData").value = tmpConversationData ? tmpConversationData.textContent : "";
                 let tmpSummaryData = AICAData.sessionDataXML.getElementsByTagName("Summary")[0];
                 document.getElementById("summaryData").value = tmpSummaryData ? tmpSummaryData.textContent : "";
+                updateMarkdownPreview('summaryData','summaryDataPreview');
                 let tmpFeedbackData = AICAData.sessionDataXML.getElementsByTagName("CoachingFeedback")[0];
                 document.getElementById("feedbackData").value = tmpFeedbackData ? tmpFeedbackData.textContent : "";
+                updateMarkdownPreview('feedbackData','feedbackDataPreview');
             } else {
                 console.error('セッションデータの読み込みに失敗しました:', result.message);
                 alert('セッションデータの読み込みに失敗しました。');

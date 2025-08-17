@@ -7,6 +7,8 @@
     <title>クライアントデータの表示・更新</title>
     <link rel="stylesheet" type="text/css" href="styles-smpl.css">
 
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <style>
         /* [既存のスタイルはそのまま] */
         textarea {
@@ -187,11 +189,13 @@
             <!-- セッションのデータ表示 -->
             <div id="summary" class="tab-content active">
                 <!-- <h3>要約</h3> -->
-                <textarea id="summaryData"></textarea>
+                <textarea id="summaryData" oninput="updateMarkdownPreview('summaryData','summaryDataPreview')"></textarea>
+                <div id="summaryDataPreview" class="markdown-preview"></div>
             </div>
             <div id="feedback" class="tab-content">
                 <!-- <h3>コーチングフィードバック</h3> -->
-                <textarea id="feedbackData"></textarea>
+                <textarea id="feedbackData" oninput="updateMarkdownPreview('feedbackData','feedbackDataPreview')"></textarea>
+                <div id="feedbackDataPreview" class="markdown-preview"></div>
             </div>
             <div id="conversation" class="tab-content">
                 <!-- <h3>会話の文字起こし</h3> -->

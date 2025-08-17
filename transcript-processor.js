@@ -449,6 +449,7 @@ function addDisplayData(displayAreaId, responseData) {
     }
     textarea.value += responseData.trim(); // 逐次データを追加
     textarea.scrollTop = textarea.scrollHeight; // スクロールを最下部に移動
+    updateMarkdownPreview(displayAreaId, displayAreaId + 'Preview');
 }
 
 // 返答の文字列を追加する。 セパレーターなし
@@ -456,6 +457,7 @@ function addDisplayDataNoSeperator(displayAreaId, responseData) {
     var textarea = document.getElementById(displayAreaId);
     textarea.value += responseData.trim(); // 逐次データを追加
     textarea.scrollTop = textarea.scrollHeight; // スクロールを最下部に移動
+    updateMarkdownPreview(displayAreaId, displayAreaId + 'Preview');
 }
 //#endregion
 
@@ -681,8 +683,10 @@ async function processGPTRequest(postData, resultElementID = null,iChat = null) 
             // Decode the chunk and append it to the result container
             const chunk = decoder.decode(value, { stream: !done });
             resultContainer.textContent += chunk;
+            updateMarkdownPreview(elementID, elementID + 'Preview');
         }
         saveCoachingFeedback(resultContainer.textContent);
+        updateMarkdownPreview(elementID, elementID + 'Preview');
     }else if (elementID == "clientRevisionTextArea") {
         resultContainer.textContent = '';  // Clear previous result
         while (!done) {
@@ -691,8 +695,10 @@ async function processGPTRequest(postData, resultElementID = null,iChat = null) 
             // Decode the chunk and append it to the result container
             const chunk = decoder.decode(value, { stream: !done });
             resultContainer.textContent += chunk;
+            updateMarkdownPreview(elementID, elementID + 'Preview');
         }
         saveSessionRevision(resultContainer.textContent);
+        updateMarkdownPreview(elementID, elementID + 'Preview');
     }
 }
 

@@ -23,6 +23,8 @@ $password = $_POST['password'] ?? '';
     <title>完了処理</title>
     <link rel="stylesheet" type="text/css" href="styles-smpl.css">
 
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <style>
         html, body{
             height:100%;
@@ -76,12 +78,14 @@ $password = $_POST['password'] ?? '';
     <p>クライアント名: <span id="clientName"></span></p>
     <h2>セッションのまとめ</h2>
     <p>デモ用にあえて話していない情報も含めて表示しています</p>
-    <textarea id="clientRevisionTextArea"></textarea><br>
+    <textarea id="clientRevisionTextArea" oninput="updateMarkdownPreview('clientRevisionTextArea','clientRevisionTextAreaPreview')"></textarea>
+    <div id="clientRevisionTextAreaPreview" class="markdown-preview"></div><br>
     <button id="save-btn">上書き保存</button>
     <button id="send-email-btn">クライアントにメール送信する</button>
     <h2>セッションフィードバック</h2>
     <p>デモ用にあえて話していない情報も含めて表示しています</p>
-    <textarea id="coachingFeedback"></textarea><br>
+    <textarea id="coachingFeedback" oninput="updateMarkdownPreview('coachingFeedback','coachingFeedbackPreview')"></textarea>
+    <div id="coachingFeedbackPreview" class="markdown-preview"></div><br>
     <button id="back-btn">メイン画面に戻る</button>
     <script src="./transcript-processor.js"></script>
     <script src="common.js"></script>
