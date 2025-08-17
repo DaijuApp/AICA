@@ -21,8 +21,9 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
 
 <body>
   <div id="top">
-    <button id="start" style="display: none;">Start recording</button>
-    <button id="stop" style="display: none;">Stop recording</button>
+    <button id="start" disabled>文字起こし開始</button>
+    <button id="stop" disabled>文字起こし終了</button>
+    <span id="transcriptionStatus" class="stopped">停止中</span>
     <button id="summary" style="display: none;">Summary</button>
   </div>
   <div class="container">
@@ -111,7 +112,80 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
     // メッセージIDとメッセージ内容のマッピングを保持するオブジェクト
     const messages = {}; //テスト用に一時的にコメントアウトにしている
 
-    // 
+    const startButton = document.getElementById('start');
+    const stopButton = document.getElementById('stop');
+    const statusText = document.getElementById('transcriptionStatus');
+    let speechServiceRunning = false;
+    let startCheckTimer = null;
+    window.isRunning = false;
+
+    function updateStatus(mode) {
+      statusText.classList.remove('running', 'stopped', 'warning');
+      if (mode === 'running') {
+        statusText.textContent = '文字起こし中';
+        statusText.classList.add('running');
+      } else if (mode === 'warning') {
+        statusText.textContent = '警告: 文字起こしが動作していません';
+        statusText.classList.add('warning');
+      } else if (mode === 'starting') {
+        statusText.textContent = '起動中...';
+        statusText.classList.add('stopped');
+      } else {
+        statusText.textContent = '停止中';
+        statusText.classList.add('stopped');
+      }
+    }
+
+    updateStatus('stopped');
+    startButton.disabled = true;
+    stopButton.disabled = true;
+
+    startButton.addEventListener('click', startTranscription);
+    stopButton.addEventListener('click', stopTranscription);
+
+    function startTranscription() {
+      if (window.isRunning) return;
+      addNewSession();
+      constantSaveTranscription();
+      window.isRunning = true;
+      startButton.disabled = true;
+      stopButton.disabled = false;
+      updateStatus('starting');
+      speechServiceRunning = false;
+      window.electronAPI.startSpeechRecognition();
+      startCheckTimer = setTimeout(() => {
+        if (!speechServiceRunning) {
+          updateStatus('warning');
+        }
+      }, 3000);
+    }
+
+    function stopTranscription() {
+      if (!window.isRunning) return;
+      window.isRunning = false;
+      window.electronAPI.stopSpeechRecognition();
+      startButton.disabled = false;
+      stopButton.disabled = true;
+      updateStatus('stopped');
+    }
+
+    window.electronAPI.onSpeechRecognitionStatus(data => {
+      if (data.status === 'started') {
+        speechServiceRunning = true;
+        updateStatus('running');
+        if (startCheckTimer) clearTimeout(startCheckTimer);
+      } else if (data.status === 'stopped') {
+        speechServiceRunning = false;
+        if (window.isRunning) {
+          updateStatus('warning');
+        } else {
+          updateStatus('stopped');
+        }
+        if (startCheckTimer) clearTimeout(startCheckTimer);
+      }
+    });
+
+    //
     // WebSocketサーバーの URL（C# 側で起動している wsServer のエンドポイント）
     const ws = new WebSocket("ws://localhost:8181/ws/");
 
@@ -188,11 +262,15 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
     // freeImputArea
     async function startNewSession() {
       console.log("startNewSession");
+      if (window.isRunning) {
+        stopTranscription();
+      }
       await deleteEmptySession();
-      window.isRunning = true;
+      window.isRunning = false;
       setSelectedClient();
-      addNewSession();
-      constantSaveTranscription();
+      startButton.disabled = false;
+      stopButton.disabled = true;
+      updateStatus('stopped');
     }
 
 
@@ -248,11 +326,6 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
       window.AICAData.mainTranscription = getTranscription("main");
       return serializeAICAData(window.AICAData);
     }
-
-    //@04a.preload経由で起動／停止イベントをログに出力する
-    window.electronAPI.onSpeechRecognitionStatus(data => {
-      console.log(`[SpeechService] status=${data.status}, service=${data.service}`);
-    });
 
   </script>
   <script src="./transcript-processor.js"></script>

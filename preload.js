@@ -18,5 +18,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSpeechService: () => ipcRenderer.invoke('get-speech-service'),                   //@04a
     onSpeechRecognitionStatus: (callback) => {                                          //@04a
         ipcRenderer.on('speech-recognition-status', (event, data) => callback(data));   //@04a
-    }                                                                                   //@04a
+    },                                                                                  //@04a
+    startSpeechRecognition: () => ipcRenderer.invoke('start-speech-recognition'),
+    stopSpeechRecognition: () => ipcRenderer.invoke('stop-speech-recognition')
 });

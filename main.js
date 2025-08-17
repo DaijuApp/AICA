@@ -143,6 +143,20 @@ function createWindow() {
     mainWindow.setTitle(`AICA`);
 }
 
+// 音声認識アプリを終了する関数
+function stopSpeechRecognition() {
+    if (!speechRecognitionProcess) {
+        console.log('Speech recognition is not running');
+        return;
+    }
+
+    try {
+        speechRecognitionProcess.kill();
+    } catch (error) {
+        console.error('Failed to stop speech recognition:', error);
+    }
+}
+
 app.whenReady().then(() => {
 
     try {
@@ -164,10 +178,7 @@ app.whenReady().then(() => {
 
     createWindow();
 
-    //@04a. 少し遅延させて音声認識を起動
-    setTimeout(() => {
-        startSpeechRecognition();
-    }, 2000);
+
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -184,9 +195,7 @@ app.on('window-all-closed', () => {
 
 //@04a.start アプリ終了時に音声認識プロセスも終了
 app.on('before-quit', () => {
-    if (speechRecognitionProcess) {
-        speechRecognitionProcess.kill();
-    }
+    stopSpeechRecognition();
 });
 
 // IPCハンドラー（音声認識の状態を取得）
@@ -195,6 +204,16 @@ ipcMain.handle('get-speech-service', () => {
         service: getSpeechService(),
         isRunning: speechRecognitionProcess !== null
     };
+});
+
+ipcMain.handle('start-speech-recognition', () => {
+    startSpeechRecognition();
+    return { status: speechRecognitionProcess ? 'started' : 'error' };
+});
+
+ipcMain.handle('stop-speech-recognition', () => {
+    stopSpeechRecognition();
+    return { status: 'stopped' };
 });
 //@04a.finish
 
