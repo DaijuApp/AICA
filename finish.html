@@ -38,6 +38,16 @@ $password = $_POST['password'] ?? '';
             background-color: #fdf6e7;
             font-size: medium;
         }
+        .markdown-preview {
+            width: calc(100% - 26px);
+            min-height: 50px;
+            border-width: 1px;
+            border-radius: 10px;
+            padding: 8px 8px 8px 8px;
+            margin: 5px 5px 5px 5px;
+            background-color: #ffffff;
+            font-size: medium;
+        }
         /* ボタン */
         button {
             min-width: 18%;
@@ -76,13 +86,18 @@ $password = $_POST['password'] ?? '';
     <p>クライアント名: <span id="clientName"></span></p>
     <h2>セッションのまとめ</h2>
     <p>デモ用にあえて話していない情報も含めて表示しています</p>
-    <textarea id="clientRevisionTextArea"></textarea><br>
+    <textarea id="clientRevisionTextArea"></textarea>
+    <div id="clientRevisionPreview" class="markdown-preview"></div>
+    <br>
     <button id="save-btn">上書き保存</button>
     <button id="send-email-btn">クライアントにメール送信する</button>
     <h2>セッションフィードバック</h2>
     <p>デモ用にあえて話していない情報も含めて表示しています</p>
-    <textarea id="coachingFeedback"></textarea><br>
+    <textarea id="coachingFeedback"></textarea>
+    <div id="coachingFeedbackPreview" class="markdown-preview"></div>
+    <br>
     <button id="back-btn">メイン画面に戻る</button>
+    <script src="markdown.js"></script>
     <script src="./transcript-processor.js"></script>
     <script src="common.js"></script>
 
@@ -112,6 +127,8 @@ $password = $_POST['password'] ?? '';
             displayLastSelectedUserData();
             getUserRevision();
             getFeedback();
+            updateClientRevisionPreview();
+            updateCoachingFeedbackPreview();
         }
 
 
@@ -163,6 +180,30 @@ $password = $_POST['password'] ?? '';
             localStorage.setItem('AICAData', JSON.stringify(serializeAICAData(window.AICAData)));
             window.electronAPI.switchHtml('ui-smpl.html');
         });
+
+        function renderMarkdown(sourceId, previewId) {
+            const text = document.getElementById(sourceId).value;
+            document.getElementById(previewId).innerHTML = parseMarkdown(text);
+        }
+
+        function updateClientRevisionPreview() {
+            renderMarkdown('clientRevisionTextArea', 'clientRevisionPreview');
+        }
+
+        function updateCoachingFeedbackPreview() {
+            renderMarkdown('coachingFeedback', 'coachingFeedbackPreview');
+        }
+
+        function updateMarkdownPreview(targetId) {
+            if (targetId === 'clientRevisionTextArea') {
+                updateClientRevisionPreview();
+            } else if (targetId === 'coachingFeedback') {
+                updateCoachingFeedbackPreview();
+            }
+        }
+
+        document.getElementById('clientRevisionTextArea').addEventListener('input', updateClientRevisionPreview);
+        document.getElementById('coachingFeedback').addEventListener('input', updateCoachingFeedbackPreview);
 
     </script>
 </body>
