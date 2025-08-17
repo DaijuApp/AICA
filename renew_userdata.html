@@ -112,10 +112,7 @@ renew_clientdata.htmlでのユーザーデータのアップデートとやり�
 
         // 準備完了を通知
         // window.electronAPI.rendererReady();
-        window.electronAPI.onPageData((data) => {
-            window.AICAData = deserializeAICAData(data);
-            console.log(window.AICAData.roomId);
-        });
+        window.AICAData = deserializeAICAData(JSON.parse(localStorage.getItem('AICAData') || '{}'));
         window.currentHtml = "renew_userdata";
         window.isRunning = false;
         // ページ読み込み時にユーザー情報をロード
@@ -158,7 +155,8 @@ renew_clientdata.htmlでのユーザーデータのアップデートとやり�
 
         // メイン画面に戻るボタンの処理（元のコードと同様）
         document.getElementById('back-btn').addEventListener('click', () => {
-            window.electronAPI.switchHtmlWithData('ui-smpl.html', serializeAICAData(window.AICAData));
+            localStorage.setItem('AICAData', JSON.stringify(serializeAICAData(window.AICAData)));
+            window.electronAPI.switchHtml('ui-smpl.html');
         });
 
 

@@ -9,8 +9,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // createPDF: (data) => ipcRenderer.send('create-pdf', data),
     // onPdfCreated: (callback) => ipcRenderer.on('pdf-created', callback),
     switchHtml: (page) => ipcRenderer.send('switch-html', page),
-    switchHtmlWithData: (page, data) => ipcRenderer.send('switch-html-with-data', page, data),
-    onPageData: (callback) => ipcRenderer.once('page-data', (event, data) => callback(data)),
     saveXML: (xmlString) => ipcRenderer.invoke('save-xml', xmlString),
     loadXML: () => ipcRenderer.invoke('load-xml'),
     saveSession: (sessionFilePath, sessionXMLString) => ipcRenderer.invoke('save-session', sessionFilePath, sessionXMLString),
