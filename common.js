@@ -616,6 +616,8 @@ function displaySessionData() {
         document.getElementById("conversationData").value = "";
         document.getElementById("summaryData").value = "";
         document.getElementById("feedbackData").value = "";
+        if (typeof updateSummaryPreview === 'function') updateSummaryPreview();
+        if (typeof updateFeedbackPreview === 'function') updateFeedbackPreview();
         return;
     }
 
@@ -640,6 +642,8 @@ function displaySessionData() {
                 document.getElementById("summaryData").value = tmpSummaryData ? tmpSummaryData.textContent : "";
                 let tmpFeedbackData = AICAData.sessionDataXML.getElementsByTagName("CoachingFeedback")[0];
                 document.getElementById("feedbackData").value = tmpFeedbackData ? tmpFeedbackData.textContent : "";
+                if (typeof updateSummaryPreview === 'function') updateSummaryPreview();
+                if (typeof updateFeedbackPreview === 'function') updateFeedbackPreview();
             } else {
                 console.error('セッションデータの読み込みに失敗しました:', result.message);
                 alert('セッションデータの読み込みに失敗しました。');

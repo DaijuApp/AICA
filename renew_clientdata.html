@@ -132,6 +132,16 @@
         #back-btn:hover {
             background-color: #bc8f8f; /* Slightly darker shade on hover */
         }
+        .markdown-preview {
+            width: calc(100% - 26px);
+            border-width: 1px;
+            border-radius: 10px;
+            min-height: 30px;
+            padding: 8px 8px 8px 8px;
+            margin: 5px 5px 5px 5px;
+            background-color: #ffffff;
+            font-size: medium;
+        }
     </style>
 
 
@@ -188,10 +198,12 @@
             <div id="summary" class="tab-content active">
                 <!-- <h3>要約</h3> -->
                 <textarea id="summaryData"></textarea>
+                <div id="summaryDataPreview" class="markdown-preview"></div>
             </div>
             <div id="feedback" class="tab-content">
                 <!-- <h3>コーチングフィードバック</h3> -->
                 <textarea id="feedbackData"></textarea>
+                <div id="feedbackDataPreview" class="markdown-preview"></div>
             </div>
             <div id="conversation" class="tab-content">
                 <!-- <h3>会話の文字起こし</h3> -->
@@ -214,6 +226,7 @@
     </div>
     <div id="footer" class="bottom-buttons"></div>
     <button id="back-btn">メイン画面に戻る</button></div>
+    <script src="markdown.js"></script>
     <script src="common.js"></script>
     <script>
         window.AICAData = deserializeAICAData(JSON.parse(localStorage.getItem('AICAData') || '{}'));
@@ -257,6 +270,22 @@
             localStorage.setItem('AICAData', JSON.stringify(serializeAICAData(window.AICAData)));
             window.electronAPI.switchHtml('ui-smpl.html');
         });
+
+        function renderMarkdown(sourceId, previewId) {
+            const text = document.getElementById(sourceId).value;
+            document.getElementById(previewId).innerHTML = parseMarkdown(text);
+        }
+
+        function updateSummaryPreview() {
+            renderMarkdown('summaryData', 'summaryDataPreview');
+        }
+
+        function updateFeedbackPreview() {
+            renderMarkdown('feedbackData', 'feedbackDataPreview');
+        }
+
+        document.getElementById('summaryData').addEventListener('input', updateSummaryPreview);
+        document.getElementById('feedbackData').addEventListener('input', updateFeedbackPreview);
     </script>
 
 </body>

@@ -449,6 +449,9 @@ function addDisplayData(displayAreaId, responseData) {
     }
     textarea.value += responseData.trim(); // 逐次データを追加
     textarea.scrollTop = textarea.scrollHeight; // スクロールを最下部に移動
+    if (typeof updateMarkdownPreview === 'function') {
+        updateMarkdownPreview(displayAreaId);
+    }
 }
 
 // 返答の文字列を追加する。 セパレーターなし
@@ -456,6 +459,9 @@ function addDisplayDataNoSeperator(displayAreaId, responseData) {
     var textarea = document.getElementById(displayAreaId);
     textarea.value += responseData.trim(); // 逐次データを追加
     textarea.scrollTop = textarea.scrollHeight; // スクロールを最下部に移動
+    if (typeof updateMarkdownPreview === 'function') {
+        updateMarkdownPreview(displayAreaId);
+    }
 }
 //#endregion
 
