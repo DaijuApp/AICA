@@ -139,8 +139,137 @@
             min-height: 30px;
             padding: 8px 8px 8px 8px;
             margin: 5px 5px 5px 5px;
-            background-color: #ffffff;
+            background-color: #fdf6e7;
             font-size: medium;
+            border-color: #925425;
+            border-style: solid;
+        }
+        
+        /* コンパクトなクライアント情報セクション */
+        .client-info-compact {
+            background-color: #fdf6e7;
+            border: 1px solid #925425;
+            border-radius: 15px;
+            padding: 15px;
+            margin: 10px 5px;
+            position: relative;
+        }
+        
+        .client-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #d4c4a8;
+            padding-bottom: 8px;
+        }
+        
+        .client-info-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #3e2723;
+            margin: 0;
+        }
+        
+        .client-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .client-info-full-width {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .client-info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .client-info-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #3e2723;
+            margin-bottom: 5px;
+        }
+        
+        .client-info-display {
+            background-color: #ffffff;
+            border: 1px solid #d4c4a8;
+            border-radius: 8px;
+            padding: 8px;
+            min-height: 24px;
+            font-size: 14px;
+            color: #3e2723;
+            line-height: 1.4;
+        }
+        
+        .client-info-input {
+            background-color: #fdf6e7;
+            border: 1px solid #925425;
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 14px;
+            color: #3e2723;
+            min-height: 24px;
+        }
+        
+        .client-info-textarea {
+            background-color: #fdf6e7;
+            border: 1px solid #925425;
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 14px;
+            color: #3e2723;
+            min-height: 60px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        .client-info-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .edit-toggle-btn {
+            background-color: #6aafb5;
+            color: #ffffff;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .edit-toggle-btn:hover {
+            background-color: #528387;
+        }
+        
+        .edit-toggle-btn.editing {
+            background-color: #4CAF50;
+        }
+        
+        .edit-toggle-btn.editing:hover {
+            background-color: #45a049;
+        }
+        
+        .cancel-btn {
+            background-color: #dc3545;
+            color: #ffffff;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .cancel-btn:hover {
+            background-color: #c82333;
         }
     </style>
 
@@ -160,23 +289,46 @@
 
     <!-- プロフィールとセッション部分をまとめた div -->
     <div id="clientInfoSection" style="display: none;">
-        <!-- クライアントのEmailアドレス表示 -->
-        <h3>Emailアドレス</h3>
-        <input type="text" id="clientEmail"><br>
-        <!-- クライアントのPDFファイル用パスワード表示 -->
-        <h3>PDFファイル用パスワード</h3>
-        <input type="text" id="pdfPassword"><br>
-        <button onclick="saveClientEmailAndPassword()">上書き保存</button>
-
-        <!-- クライアントのプロフィール表示 -->
-        <h3>プロフィール</h3>
-        <textarea id="clientProfile"></textarea><br>
-        <button onclick="saveClientProfile()">上書き保存</button>
-
-        <!-- クライアントのメモ表示 -->
-        <h3>メモ</h3>
-        <textarea id="clientMemo"></textarea><br>
-        <button onclick="saveClientMemo()">上書き保存</button>
+        <!-- コンパクトなクライアント情報セクション -->
+        <div class="client-info-compact">
+            <div class="client-info-header">
+                <h3 class="client-info-title">クライアント情報</h3>
+                <div class="client-info-buttons">
+                    <button id="edit-client-info-btn" class="edit-toggle-btn">編集</button>
+                    <button id="save-client-info-btn" class="edit-toggle-btn editing" style="display: none;">保存</button>
+                    <button id="cancel-client-info-btn" class="cancel-btn" style="display: none;">キャンセル</button>
+                    <button onclick="deleteClient()" class="cancel-btn" style="margin-left: 10px;">削除</button>
+                </div>
+            </div>
+            
+            <div class="client-info-grid">
+                <div class="client-info-item">
+                    <label class="client-info-label">Emailアドレス</label>
+                    <div id="clientEmailDisplay" class="client-info-display"></div>
+                    <input type="text" id="clientEmail" class="client-info-input" style="display: none;">
+                </div>
+                
+                <div class="client-info-item">
+                    <label class="client-info-label">PDFパスワード</label>
+                    <div id="pdfPasswordDisplay" class="client-info-display"></div>
+                    <input type="text" id="pdfPassword" class="client-info-input" style="display: none;">
+                </div>
+            </div>
+            
+            <div class="client-info-full-width">
+                <div class="client-info-item">
+                    <label class="client-info-label">プロフィール</label>
+                    <div id="clientProfileDisplay" class="client-info-display"></div>
+                    <textarea id="clientProfile" class="client-info-textarea" style="display: none;"></textarea>
+                </div>
+                
+                <div class="client-info-item">
+                    <label class="client-info-label">メモ</label>
+                    <div id="clientMemoDisplay" class="client-info-display"></div>
+                    <textarea id="clientMemo" class="client-info-textarea" style="display: none;"></textarea>
+                </div>
+            </div>
+        </div>
 
         <!-- セッション選択 -->
         <h3>これまでのセッション情報</h3>
@@ -197,19 +349,24 @@
             <!-- セッションのデータ表示 -->
             <div id="summary" class="tab-content active">
                 <!-- <h3>要約</h3> -->
-                <textarea id="summaryData"></textarea>
+                <textarea id="summaryData" style="display: none;"></textarea>
                 <div id="summaryDataPreview" class="markdown-preview"></div>
+                <button id="edit-summary-btn">編集</button>
+                <button id="save-summary-btn" style="display: none;">保存</button>
+                <button id="cancel-summary-btn" style="display: none;">キャンセル</button>
             </div>
             <div id="feedback" class="tab-content">
                 <!-- <h3>コーチングフィードバック</h3> -->
-                <textarea id="feedbackData"></textarea>
+                <textarea id="feedbackData" style="display: none;"></textarea>
                 <div id="feedbackDataPreview" class="markdown-preview"></div>
+                <button id="edit-feedback-btn">編集</button>
+                <button id="save-feedback-btn" style="display: none;">保存</button>
+                <button id="cancel-feedback-btn" style="display: none;">キャンセル</button>
             </div>
             <div id="conversation" class="tab-content">
                 <!-- <h3>会話の文字起こし</h3> -->
                 <textarea id="conversationData"></textarea>
             </div>
-            <button onclick="saveSessionData()">上書き保存</button>
         </div>
     </div>
 
@@ -229,7 +386,31 @@
     <script src="markdown.js"></script>
     <script src="common.js"></script>
     <script>
-        window.AICAData = deserializeAICAData(JSON.parse(localStorage.getItem('AICAData') || '{}'));
+        // localStorageからAICADataを復元（XMLデータ以外）
+        const clientStoredData = localStorage.getItem('AICAData');
+        if (clientStoredData) {
+            try {
+                const restoredData = JSON.parse(clientStoredData);
+                // XMLデータ以外の状態を復元
+                window.AICAData = window.AICAData || {};
+                window.AICAData.selectedClient = restoredData.selectedClient || "";
+                window.AICAData.selectedSession = restoredData.selectedSession || "";
+                window.AICAData.userName = restoredData.userName || "";
+                window.AICAData.userEmail = restoredData.userEmail || "";
+                window.AICAData.userProfile = restoredData.userProfile || "";
+                window.AICAData.clientInfo = restoredData.clientInfo || {};
+                window.AICAData.allTranscription = restoredData.allTranscription || "";
+                window.AICAData.mainTranscription = restoredData.mainTranscription || "";
+                window.AICAData.conversation_history = restoredData.conversation_history || [];
+                console.log('AICAData状態復元完了（XMLデータ除く）');
+            } catch (e) {
+                console.error('Failed to parse AICAData from localStorage:', e);
+                window.AICAData = window.AICAData || {};
+            }
+        } else {
+            window.AICAData = window.AICAData || {};
+        }
+        
         // 準備完了を通知
         //window.electronAPI.rendererReady();
 
@@ -237,6 +418,10 @@
         window.currentHtml = "renew_clientdata";
         window.onload = function () {
             loadXMLData(populateClientDropdown);
+            // プレビューを初期化
+            setTimeout(initializePreviews, 500);
+            // クライアント情報表示を初期化
+            setTimeout(updateClientInfoDisplays, 500);
         };
         let sessionData = {};     // セッションデータを保持
         // タブ切り替え
@@ -286,6 +471,250 @@
 
         document.getElementById('summaryData').addEventListener('input', updateSummaryPreview);
         document.getElementById('feedbackData').addEventListener('input', updateFeedbackPreview);
+        
+        // 編集/保存/キャンセル機能の実装
+        let originalSummaryText = '';
+        let originalFeedbackText = '';
+        
+        // 要約の編集/保存/キャンセル
+        document.getElementById('edit-summary-btn').addEventListener('click', () => {
+            toggleEditMode('summary');
+        });
+        
+        document.getElementById('save-summary-btn').addEventListener('click', async () => {
+            await saveAndExitEditMode('summary');
+        });
+        
+        document.getElementById('cancel-summary-btn').addEventListener('click', () => {
+            cancelEditMode('summary');
+        });
+        
+        // フィードバックの編集/保存/キャンセル
+        document.getElementById('edit-feedback-btn').addEventListener('click', () => {
+            toggleEditMode('feedback');
+        });
+        
+        document.getElementById('save-feedback-btn').addEventListener('click', async () => {
+            await saveAndExitEditMode('feedback');
+        });
+        
+        document.getElementById('cancel-feedback-btn').addEventListener('click', () => {
+            cancelEditMode('feedback');
+        });
+        
+        function toggleEditMode(type) {
+            const textarea = document.getElementById(type === 'summary' ? 'summaryData' : 'feedbackData');
+            const preview = document.getElementById(type === 'summary' ? 'summaryDataPreview' : 'feedbackDataPreview');
+            const editBtn = document.getElementById(`edit-${type}-btn`);
+            const saveBtn = document.getElementById(`save-${type}-btn`);
+            const cancelBtn = document.getElementById(`cancel-${type}-btn`);
+            
+            // 元のテキストを保存
+            if (type === 'summary') {
+                originalSummaryText = textarea.value;
+            } else {
+                originalFeedbackText = textarea.value;
+            }
+            
+            // 編集モードに切り替え
+            textarea.style.display = 'block';
+            preview.style.display = 'none';
+            editBtn.style.display = 'none';
+            saveBtn.style.display = 'inline-block';
+            cancelBtn.style.display = 'inline-block';
+            
+            console.log(`Switched to edit mode: ${type}`);
+        }
+        
+        async function saveAndExitEditMode(type) {
+            const textarea = document.getElementById(type === 'summary' ? 'summaryData' : 'feedbackData');
+            const preview = document.getElementById(type === 'summary' ? 'summaryDataPreview' : 'feedbackDataPreview');
+            const editBtn = document.getElementById(`edit-${type}-btn`);
+            const saveBtn = document.getElementById(`save-${type}-btn`);
+            const cancelBtn = document.getElementById(`cancel-${type}-btn`);
+            
+            // XMLデータを保存
+            await saveSessionData();
+            
+            // プレビューモードに戻る
+            textarea.style.display = 'none';
+            preview.style.display = 'block';
+            editBtn.style.display = 'inline-block';
+            saveBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+            
+            // プレビューを更新
+            if (type === 'summary') {
+                updateSummaryPreview();
+            } else {
+                updateFeedbackPreview();
+            }
+            
+            console.log(`Switched to preview mode: ${type}`);
+        }
+        
+        function cancelEditMode(type) {
+            const textarea = document.getElementById(type === 'summary' ? 'summaryData' : 'feedbackData');
+            const preview = document.getElementById(type === 'summary' ? 'summaryDataPreview' : 'feedbackDataPreview');
+            const editBtn = document.getElementById(`edit-${type}-btn`);
+            const saveBtn = document.getElementById(`save-${type}-btn`);
+            const cancelBtn = document.getElementById(`cancel-${type}-btn`);
+            
+            // 元のテキストに戻す
+            if (type === 'summary') {
+                textarea.value = originalSummaryText;
+            } else {
+                textarea.value = originalFeedbackText;
+            }
+            
+            // プレビューモードに戻る
+            textarea.style.display = 'none';
+            preview.style.display = 'block';
+            editBtn.style.display = 'inline-block';
+            saveBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+            
+            // プレビューを更新
+            if (type === 'summary') {
+                updateSummaryPreview();
+            } else {
+                updateFeedbackPreview();
+            }
+            
+            console.log(`Cancelled edit mode: ${type}`);
+        }
+        
+        // データロード時にプレビューを初期化
+        function initializePreviews() {
+            updateSummaryPreview();
+            updateFeedbackPreview();
+        }
+        
+        // クライアント情報の編集/保存/キャンセル機能
+        let originalClientData = {};
+        let isEditingClientInfo = false;
+        
+        document.getElementById('edit-client-info-btn').addEventListener('click', () => {
+            toggleClientInfoEditMode();
+        });
+        
+        document.getElementById('save-client-info-btn').addEventListener('click', async () => {
+            await saveClientInfoData();
+        });
+        
+        document.getElementById('cancel-client-info-btn').addEventListener('click', () => {
+            cancelClientInfoEdit();
+        });
+        
+        function toggleClientInfoEditMode() {
+            const editBtn = document.getElementById('edit-client-info-btn');
+            const saveBtn = document.getElementById('save-client-info-btn');
+            const cancelBtn = document.getElementById('cancel-client-info-btn');
+            
+            if (!isEditingClientInfo) {
+                // 編集モードに切り替え
+                isEditingClientInfo = true;
+                
+                // 元のデータを保存
+                originalClientData = {
+                    email: document.getElementById('clientEmail').value,
+                    password: document.getElementById('pdfPassword').value,
+                    profile: document.getElementById('clientProfile').value,
+                    memo: document.getElementById('clientMemo').value
+                };
+                
+                // 表示を入力フィールドに切り替え
+                switchToEditMode();
+                
+                // ボタンを更新
+                editBtn.style.display = 'none';
+                saveBtn.style.display = 'inline-block';
+                cancelBtn.style.display = 'inline-block';
+                
+                console.log('クライアント情報編集モードに切り替えました');
+            }
+        }
+        
+        async function saveClientInfoData() {
+            try {
+                // 各関数を呼び出して保存
+                await saveClientEmailAndPassword();
+                await saveClientProfile();
+                await saveClientMemo();
+                
+                // 編集モードを終了
+                exitEditMode();
+                
+                console.log('クライアント情報を保存しました');
+            } catch (error) {
+                console.error('クライアント情報の保存中にエラーが発生しました:', error);
+                alert('保存中にエラーが発生しました。');
+            }
+        }
+        
+        function cancelClientInfoEdit() {
+            // 元のデータに戻す
+            document.getElementById('clientEmail').value = originalClientData.email;
+            document.getElementById('pdfPassword').value = originalClientData.password;
+            document.getElementById('clientProfile').value = originalClientData.profile;
+            document.getElementById('clientMemo').value = originalClientData.memo;
+            
+            // 編集モードを終了
+            exitEditMode();
+            
+            console.log('クライアント情報の編集をキャンセルしました');
+        }
+        
+        function switchToEditMode() {
+            // 表示を非表示に、入力フィールドを表示に
+            document.getElementById('clientEmailDisplay').style.display = 'none';
+            document.getElementById('clientEmail').style.display = 'block';
+            
+            document.getElementById('pdfPasswordDisplay').style.display = 'none';
+            document.getElementById('pdfPassword').style.display = 'block';
+            
+            document.getElementById('clientProfileDisplay').style.display = 'none';
+            document.getElementById('clientProfile').style.display = 'block';
+            
+            document.getElementById('clientMemoDisplay').style.display = 'none';
+            document.getElementById('clientMemo').style.display = 'block';
+        }
+        
+        function exitEditMode() {
+            isEditingClientInfo = false;
+            
+            // 入力フィールドを非表示に、表示を表示に
+            document.getElementById('clientEmail').style.display = 'none';
+            document.getElementById('clientEmailDisplay').style.display = 'block';
+            
+            document.getElementById('pdfPassword').style.display = 'none';
+            document.getElementById('pdfPasswordDisplay').style.display = 'block';
+            
+            document.getElementById('clientProfile').style.display = 'none';
+            document.getElementById('clientProfileDisplay').style.display = 'block';
+            
+            document.getElementById('clientMemo').style.display = 'none';
+            document.getElementById('clientMemoDisplay').style.display = 'block';
+            
+            // 表示を更新
+            updateClientInfoDisplays();
+            
+            // ボタンを更新
+            const editBtn = document.getElementById('edit-client-info-btn');
+            const saveBtn = document.getElementById('save-client-info-btn');
+            const cancelBtn = document.getElementById('cancel-client-info-btn');
+            
+            editBtn.style.display = 'inline-block';
+            saveBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+        }
+        
+        function updateClientInfoDisplays() {
+            document.getElementById('clientEmailDisplay').textContent = document.getElementById('clientEmail').value || '未設定';
+            document.getElementById('pdfPasswordDisplay').textContent = document.getElementById('pdfPassword').value || '未設定';
+            document.getElementById('clientProfileDisplay').textContent = document.getElementById('clientProfile').value || '未設定';
+            document.getElementById('clientMemoDisplay').textContent = document.getElementById('clientMemo').value || '未設定';
+        }
     </script>
 
 </body>

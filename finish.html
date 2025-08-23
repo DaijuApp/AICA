@@ -40,13 +40,16 @@ $password = $_POST['password'] ?? '';
         }
         .markdown-preview {
             width: calc(100% - 26px);
+            height: calc(50% - 300px);
             min-height: 50px;
             border-width: 1px;
             border-radius: 10px;
             padding: 8px 8px 8px 8px;
             margin: 5px 5px 5px 5px;
-            background-color: #ffffff;
+            background-color: #fdf6e7;
             font-size: medium;
+            border: 1px solid #ccc;
+            overflow-y: auto;
         }
         /* ボタン */
         button {
@@ -86,15 +89,19 @@ $password = $_POST['password'] ?? '';
     <p>クライアント名: <span id="clientName"></span></p>
     <h2>セッションのまとめ</h2>
     <p>デモ用にあえて話していない情報も含めて表示しています</p>
-    <textarea id="clientRevisionTextArea"></textarea>
+    <textarea id="clientRevisionTextArea" style="display: none;"></textarea>
     <div id="clientRevisionPreview" class="markdown-preview"></div>
     <br>
-    <button id="save-btn">上書き保存</button>
+    <button id="edit-revision-btn">編集</button>
+    <button id="save-revision-btn" style="display: none;">保存</button>
     <button id="send-email-btn">クライアントにメール送信する</button>
     <h2>セッションフィードバック</h2>
     <p>デモ用にあえて話していない情報も含めて表示しています</p>
-    <textarea id="coachingFeedback"></textarea>
+    <textarea id="coachingFeedback" style="display: none;"></textarea>
     <div id="coachingFeedbackPreview" class="markdown-preview"></div>
+    <br>
+    <button id="edit-feedback-btn">編集</button>
+    <button id="save-feedback-btn" style="display: none;">保存</button>
     <br>
     <button id="back-btn">メイン画面に戻る</button>
     <script src="markdown.js"></script>
@@ -102,75 +109,209 @@ $password = $_POST['password'] ?? '';
     <script src="common.js"></script>
 
     <script>
-        window.AICAData = deserializeAICAData(JSON.parse(localStorage.getItem('AICAData') || '{}'));
-
-        // データの確認
-        if (window.AICAData.xmlData) {
-            // xmlData を使用した処理
+        // localStorageからAICADataを復元（XMLデータ以外）
+        const finishStoredData = localStorage.getItem('AICAData');
+        if (finishStoredData) {
+            try {
+                const restoredData = JSON.parse(finishStoredData);
+                // XMLデータ以外の状態を復元
+                window.AICAData = window.AICAData || {};
+                window.AICAData.selectedClient = restoredData.selectedClient || "";
+                window.AICAData.selectedSession = restoredData.selectedSession || "";
+                window.AICAData.userName = restoredData.userName || "";
+                window.AICAData.userEmail = restoredData.userEmail || "";
+                window.AICAData.userProfile = restoredData.userProfile || "";
+                window.AICAData.clientInfo = restoredData.clientInfo || {};
+                window.AICAData.allTranscription = restoredData.allTranscription || "";
+                window.AICAData.mainTranscription = restoredData.mainTranscription || "";
+                window.AICAData.conversation_history = restoredData.conversation_history || [];
+                
+                // セッションデータXMLのみ復元（文字起こしデータが含まれているため）
+                if (restoredData.sessionDataXMLString) {
+                    const parser = new DOMParser();
+                    window.AICAData.sessionDataXML = parser.parseFromString(restoredData.sessionDataXMLString, 'application/xml');
+                }
+                
+                console.log('AICAData状態復元完了（メインXMLデータ除く）');
+            } catch (e) {
+                console.error('Failed to parse AICAData from localStorage:', e);
+                window.AICAData = window.AICAData || {};
+            }
         } else {
-            console.warn('xmlData is null');
+            window.AICAData = window.AICAData || {};
         }
 
+        // データの確認
         if (window.AICAData.sessionDataXML) {
             // sessionXML を使用した処理
+            console.log('sessionDataXML復元済み');
         } else {
             console.warn('sessionDataXML is null');
         }
 
         // その他の処理を続行
-        // クライアント情報をロード
-        findLatestSessionClientData(afterFindLastSession);
+        // XMLデータをロード（関数が定義されているか確認）
+        if (typeof loadXMLData === 'function') {
+            console.log('loadXMLData関数確認完了 - XMLデータロード開始');
+            loadXMLData(() => {
+                console.log('loadXMLData完了 - findLatestSessionClientData呼び出し');
+                // XMLデータロード完了後にクライアント情報をロード
+                findLatestSessionClientData(afterFindLastSession);
+            });
+        } else {
+            console.error('loadXMLData関数が見つかりません');
+            setTimeout(() => {
+                if (typeof loadXMLData === 'function') {
+                    console.log('遅延ロード: XMLデータロード開始');
+                    loadXMLData(() => {
+                        findLatestSessionClientData(afterFindLastSession);
+                    });
+                } else {
+                    console.error('loadXMLData関数が依然として見つかりません');
+                }
+            }, 100);
+        }
 
         window.currentHtml = "finish";
         window.isRunning = false;
         function afterFindLastSession() {
+            console.log('afterFindLastSession called');
+            console.log('sessionDataXML after findLatestSessionClientData:', window.AICAData.sessionDataXML);
             displayLastSelectedUserData();
-            getUserRevision();
-            getFeedback();
+            
+            // 新しいセッションデータがあるかチェック
+            const hasNewTranscription = window.AICAData.mainTranscription && window.AICAData.mainTranscription.trim() !== "";
+            console.log('hasNewTranscription:', hasNewTranscription);
+            console.log('mainTranscription:', window.AICAData.mainTranscription);
+            
+            if (hasNewTranscription) {
+                // 新しい文字起こしデータがある場合、AIに要約とフィードバックを生成してもらう
+                console.log("新しいセッションデータが見つかりました。AIに要約とフィードバックを生成してもらいます。");
+                getUserRevision();
+                getFeedback();
+            } else {
+                // 新しいデータがない場合、前回のセッションデータを表示
+                console.log("新しいセッションデータがありません。前回のセッションデータを表示します。");
+                displayPreviousSessionData();
+            }
+            
+            // 初期プレビューを更新
             updateClientRevisionPreview();
             updateCoachingFeedbackPreview();
+            console.log('Initial previews updated');
+        }
+
+        function displayPreviousSessionData() {
+            // 前回のセッションの要約とフィードバックを表示
+            console.log('displayPreviousSessionData called');
+            console.log('sessionDataXML:', window.AICAData.sessionDataXML);
+            if (window.AICAData.sessionDataXML) {
+                try {
+                    const summaryElement = window.AICAData.sessionDataXML.getElementsByTagName('Summary')[0];
+                    const feedbackElement = window.AICAData.sessionDataXML.getElementsByTagName('CoachingFeedback')[0];
+                    console.log('Summary content:', summaryElement ? summaryElement.textContent : 'null');
+                    console.log('Feedback content:', feedbackElement ? feedbackElement.textContent : 'null');
+                    
+                    if (summaryElement && summaryElement.textContent.trim() !== "") {
+                        document.getElementById('clientRevisionTextArea').value = summaryElement.textContent;
+                        console.log("前回のセッション要約を表示しました。");
+                    } else {
+                        document.getElementById('clientRevisionTextArea').value = "前回のセッションの要約データがありません。";
+                    }
+                    
+                    if (feedbackElement && feedbackElement.textContent.trim() !== "") {
+                        document.getElementById('coachingFeedback').value = feedbackElement.textContent;
+                        console.log("前回のセッションフィードバックを表示しました。");
+                    } else {
+                        document.getElementById('coachingFeedback').value = "前回のセッションのフィードバックデータがありません。";
+                    }
+                    
+                    // データ設定後にプレビューを更新
+                    updateClientRevisionPreview();
+                    updateCoachingFeedbackPreview();
+                } catch (error) {
+                    console.error("前回のセッションデータの表示中にエラーが発生しました:", error);
+                    document.getElementById('clientRevisionTextArea').value = "前回のセッションデータの読み込み中にエラーが発生しました。";
+                    document.getElementById('coachingFeedback').value = "前回のセッションデータの読み込み中にエラーが発生しました。";
+                    // エラーケースでもプレビューを更新
+                    updateClientRevisionPreview();
+                    updateCoachingFeedbackPreview();
+                }
+            } else {
+                console.warn("sessionDataXMLが利用できません。");
+                document.getElementById('clientRevisionTextArea').value = "前回のセッションデータがありません。";
+                document.getElementById('coachingFeedback').value = "前回のセッションデータがありません。";
+                // エラーケースでもプレビューを更新
+                updateClientRevisionPreview();
+                updateCoachingFeedbackPreview();
+            }
         }
 
 
-        // 上書き保存ボタンの処理
-        document.getElementById('save-btn').addEventListener('click', async () => {
-            if (window.clientInfo) {
-                const summaryText = document.getElementById('clientRevisionTextArea').value;
-                window.sessionDataXML.getElementsByTagName('Summary')[0].textContent = summaryText;
-
-                // XMLを文字列に変換
-                const serializer = new XMLSerializer();
-                const sessionXMLString = serializer.serializeToString(window.sessionDataXML);
-
-                // セッションデータを保存
-                const result = await window.electronAPI.saveSession(window.clientInfo.sessionFilePath, sessionXMLString);
-
-                if (result.status === 'success') {
-                    alert('セッションデータが保存されました。');
-                } else {
-                    alert('セッションデータの保存に失敗しました。');
-                }
-            }
-        });
-
         // メール送信ボタンの処理
         document.getElementById('send-email-btn').addEventListener('click', async () => {
-            alert('メールを送信する準備をしています。')
-            if (window.AICAData.clientInfo) {
-                const sessionDateTime = encodeFileName(window.AICAData.clientInfo.sessionDateTime);
-                const summaryText = document.getElementById('clientRevisionTextArea').value;
-                const password = window.AICAData.clientInfo.password;
-                const recipientEmail = window.AICAData.clientInfo.email;
-                const senderName = window.AICAData.userName;
-                const recipientName = window.AICAData.clientInfo.name;
+            const confirmSend = confirm('クライアントにメールを送信しますか？\n\nOKを押すと送信処理を開始します。');
+            if (!confirmSend) {
+                return; // ユーザーがキャンセルした場合、処理を中止
+            }
+            
+            if (!window.AICAData.clientInfo) {
+                alert('クライアント情報が見つかりません。');
+                return;
+            }
+            
+            // 必要なデータの検証 - window.AICAData.clientInfoから取得
+            console.log('Client info for email:', window.AICAData.clientInfo);
+            
+            const recipientEmail = window.AICAData.clientInfo ? window.AICAData.clientInfo.email : '';
+            const recipientName = window.AICAData.clientInfo ? window.AICAData.clientInfo.name : '';
+            const password = window.AICAData.clientInfo ? window.AICAData.clientInfo.password : '';
+            const senderName = window.AICAData.userName;
+            
+            if (!recipientEmail) {
+                alert('クライアントのメールアドレスが設定されていません。');
+                return;
+            }
+            
+            if (!recipientName) {
+                alert('クライアント名が設定されていません。');
+                return;
+            }
+            
+            if (!password) {
+                alert('PDFパスワードが設定されていません。');
+                return;
+            }
+            
+            if (!senderName) {
+                alert('送信者名が設定されていません。');
+                return;
+            }
+            
+            try {
+                const sessionDateTime = encodeFileName(window.AICAData.clientInfo.sessionDateTime || "unknown_session");
+                const summaryText = document.getElementById('clientRevisionTextArea').value || "";
                 const outputText = 'コーチングセッションの要約　（日付：' + sessionDateTime.slice(0, 10) + '）\n\n\n' + summaryText;
+                
+                console.log('PDF作成パラメータ:', {
+                    outputText: outputText.substring(0, 100) + '...',
+                    sessionDateTime,
+                    password: '***',
+                    recipientEmail,
+                    senderName,
+                    recipientName
+                });
+                
                 const result = await window.electronAPI.createAndSendPDF(outputText, sessionDateTime, password, recipientEmail, senderName, recipientName);
 
                 if (result.status === 'success') {
                     alert('メールが送信されました。');
                 } else {
-                    alert('メールの送信に失敗しました。');
+                    alert('メールの送信に失敗しました: ' + (result.error || '不明なエラー'));
                 }
+            } catch (error) {
+                console.error('メール送信エラー:', error);
+                alert('メール送信中にエラーが発生しました: ' + error.message);
             }
         });
 
@@ -187,11 +328,21 @@ $password = $_POST['password'] ?? '';
         }
 
         function updateClientRevisionPreview() {
+            console.log('updateClientRevisionPreview called');
+            const textArea = document.getElementById('clientRevisionTextArea');
+            const preview = document.getElementById('clientRevisionPreview');
+            console.log('TextArea value:', textArea.value);
             renderMarkdown('clientRevisionTextArea', 'clientRevisionPreview');
+            console.log('Preview updated, innerHTML length:', preview.innerHTML.length);
         }
 
         function updateCoachingFeedbackPreview() {
+            console.log('updateCoachingFeedbackPreview called');
+            const textArea = document.getElementById('coachingFeedback');
+            const preview = document.getElementById('coachingFeedbackPreview');
+            console.log('TextArea value:', textArea.value);
             renderMarkdown('coachingFeedback', 'coachingFeedbackPreview');
+            console.log('Preview updated, innerHTML length:', preview.innerHTML.length);
         }
 
         function updateMarkdownPreview(targetId) {
@@ -199,6 +350,154 @@ $password = $_POST['password'] ?? '';
                 updateClientRevisionPreview();
             } else if (targetId === 'coachingFeedback') {
                 updateCoachingFeedbackPreview();
+            }
+        }
+
+        // 編集/保存機能
+        document.getElementById('edit-revision-btn').addEventListener('click', () => {
+            toggleEditMode('revision');
+        });
+        
+        document.getElementById('save-revision-btn').addEventListener('click', () => {
+            toggleEditMode('revision');
+        });
+        
+        document.getElementById('edit-feedback-btn').addEventListener('click', () => {
+            toggleEditMode('feedback');
+        });
+        
+        document.getElementById('save-feedback-btn').addEventListener('click', () => {
+            toggleEditMode('feedback');
+        });
+        
+        async function toggleEditMode(type) {
+            if (type === 'revision') {
+                const textarea = document.getElementById('clientRevisionTextArea');
+                const preview = document.getElementById('clientRevisionPreview');
+                const editBtn = document.getElementById('edit-revision-btn');
+                const saveBtn = document.getElementById('save-revision-btn');
+                
+                // 現在の状態を確認（計算されたスタイルを使用）
+                const isTextareaVisible = window.getComputedStyle(textarea).display !== 'none';
+                
+                if (!isTextareaVisible) {
+                    // 編集モードに切り替え
+                    textarea.style.display = 'block';
+                    preview.style.display = 'none';
+                    editBtn.style.display = 'none';
+                    saveBtn.style.display = 'inline-block';
+                    textarea.focus();
+                    console.log('Switched to edit mode: revision');
+                } else {
+                    // プレビューモードに切り替え
+                    textarea.style.display = 'none';
+                    preview.style.display = 'block';
+                    editBtn.style.display = 'inline-block';
+                    saveBtn.style.display = 'none';
+                    updateClientRevisionPreview();
+                    
+                    // XMLデータを更新して保存
+                    await saveRevisionToXML();
+                    
+                    console.log('Switched to preview mode: revision');
+                }
+            } else if (type === 'feedback') {
+                const textarea = document.getElementById('coachingFeedback');
+                const preview = document.getElementById('coachingFeedbackPreview');
+                const editBtn = document.getElementById('edit-feedback-btn');
+                const saveBtn = document.getElementById('save-feedback-btn');
+                
+                // 現在の状態を確認（計算されたスタイルを使用）
+                const isTextareaVisible = window.getComputedStyle(textarea).display !== 'none';
+                
+                if (!isTextareaVisible) {
+                    // 編集モードに切り替え
+                    textarea.style.display = 'block';
+                    preview.style.display = 'none';
+                    editBtn.style.display = 'none';
+                    saveBtn.style.display = 'inline-block';
+                    textarea.focus();
+                    console.log('Switched to edit mode: feedback');
+                } else {
+                    // プレビューモードに切り替え
+                    textarea.style.display = 'none';
+                    preview.style.display = 'block';
+                    editBtn.style.display = 'inline-block';
+                    saveBtn.style.display = 'none';
+                    updateCoachingFeedbackPreview();
+                    
+                    // XMLデータを更新して保存
+                    await saveFeedbackToXML();
+                    
+                    console.log('Switched to preview mode: feedback');
+                }
+            }
+        }
+
+        // XMLデータ更新関数
+        async function saveRevisionToXML() {
+            console.log('saveRevisionToXML called');
+            console.log('AICAData.sessionDataXML exists:', !!window.AICAData.sessionDataXML);
+            console.log('AICAData.clientInfo exists:', !!window.AICAData.clientInfo);
+            console.log('AICAData.clientInfo:', window.AICAData.clientInfo);
+            
+            if (window.AICAData.sessionDataXML && window.AICAData.clientInfo) {
+                try {
+                    const summaryText = document.getElementById('clientRevisionTextArea').value;
+                    window.AICAData.sessionDataXML.getElementsByTagName('Summary')[0].textContent = summaryText;
+                    
+                    // XMLを文字列に変換
+                    const serializer = new XMLSerializer();
+                    const sessionXMLString = serializer.serializeToString(window.AICAData.sessionDataXML);
+                    
+                    // セッションデータを保存
+                    const result = await window.electronAPI.saveSession(window.AICAData.clientInfo.sessionFilePath, sessionXMLString);
+                    
+                    if (result.status === 'success') {
+                        console.log('セッション要約がXMLに保存されました。');
+                    } else {
+                        console.error('セッション要約のXML保存に失敗しました。');
+                    }
+                } catch (error) {
+                    console.error('セッション要約のXML保存中にエラーが発生しました:', error);
+                }
+            }
+        }
+        
+        async function saveFeedbackToXML() {
+            console.log('saveFeedbackToXML called');
+            console.log('AICAData.sessionDataXML exists:', !!window.AICAData.sessionDataXML);
+            console.log('AICAData.clientInfo exists:', !!window.AICAData.clientInfo);
+            console.log('AICAData.clientInfo:', window.AICAData.clientInfo);
+            
+            if (window.AICAData.sessionDataXML && window.AICAData.clientInfo) {
+                try {
+                    const feedbackText = document.getElementById('coachingFeedback').value;
+                    const feedbackElement = window.AICAData.sessionDataXML.getElementsByTagName('CoachingFeedback')[0];
+                    if (feedbackElement) {
+                        feedbackElement.textContent = feedbackText;
+                    } else {
+                        // CoachingFeedback要素が存在しない場合は作成
+                        const newFeedbackElement = window.AICAData.sessionDataXML.createElement('CoachingFeedback');
+                        newFeedbackElement.textContent = feedbackText;
+                        window.AICAData.sessionDataXML.documentElement.appendChild(newFeedbackElement);
+                    }
+                    
+                    // XMLを文字列に変換
+                    const serializer = new XMLSerializer();
+                    const sessionXMLString = serializer.serializeToString(window.AICAData.sessionDataXML);
+                    
+                    // セッションデータを保存
+                    const result = await window.electronAPI.saveSession(window.AICAData.clientInfo.sessionFilePath, sessionXMLString);
+                    
+                    if (result.status === 'success') {
+                        console.log('セッションフィードバックがXMLに保存されました。');
+                    } else {
+                        console.error('セッションフィードバックのXML保存に失敗しました。');
+                    }
+                } catch (error) {
+                    console.error('セッションフィードバックのXML保存中にエラーが発生しました:', error);
+                }
             }
         }
 

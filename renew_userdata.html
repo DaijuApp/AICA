@@ -112,7 +112,32 @@ renew_clientdata.htmlでのユーザーデータのアップデートとやり�
 
         // 準備完了を通知
         // window.electronAPI.rendererReady();
-        window.AICAData = deserializeAICAData(JSON.parse(localStorage.getItem('AICAData') || '{}'));
+        
+        // localStorageからAICADataを復元（XMLデータ以外）
+        const userStoredData = localStorage.getItem('AICAData');
+        if (userStoredData) {
+            try {
+                const restoredData = JSON.parse(userStoredData);
+                // XMLデータ以外の状態を復元
+                window.AICAData = window.AICAData || {};
+                window.AICAData.selectedClient = restoredData.selectedClient || "";
+                window.AICAData.selectedSession = restoredData.selectedSession || "";
+                window.AICAData.userName = restoredData.userName || "";
+                window.AICAData.userEmail = restoredData.userEmail || "";
+                window.AICAData.userProfile = restoredData.userProfile || "";
+                window.AICAData.clientInfo = restoredData.clientInfo || {};
+                window.AICAData.allTranscription = restoredData.allTranscription || "";
+                window.AICAData.mainTranscription = restoredData.mainTranscription || "";
+                window.AICAData.conversation_history = restoredData.conversation_history || [];
+                console.log('AICAData状態復元完了（XMLデータ除く）');
+            } catch (e) {
+                console.error('Failed to parse AICAData from localStorage:', e);
+                window.AICAData = window.AICAData || {};
+            }
+        } else {
+            window.AICAData = window.AICAData || {};
+        }
+        
         window.currentHtml = "renew_userdata";
         window.isRunning = false;
         // ページ読み込み時にユーザー情報をロード

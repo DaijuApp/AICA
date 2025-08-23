@@ -220,10 +220,8 @@ ipcMain.handle('stop-speech-recognition', () => {
 /////////////////////////////
 //#region ↓↓↓↓　xml操作　↓↓↓↓
 function createInitialXMLFile() {
-    const initialXMLContent = `<?xml version="1.0" encoding="UTF-8"?><data>
-    <parsererror xmlns="http://www.w3.org/1999/xhtml" style="display: block; white-space: pre; border: 2px solid #c77; padding: 0 1em 0 1em; margin: 1em; background-color: #fdd; color: black">
-        <h3>This page contains the following errors:</h3>
-    </parsererror>
+    const initialXMLContent = `<?xml version="1.0" encoding="UTF-8"?>
+<data>
     <User>
         <userName></userName>
         <userEmail></userEmail>
@@ -326,17 +324,29 @@ ipcMain.on('switch-html', (event, page) => {
 ////////////////////////////
 //#region ↓↓↓↓　PDF操作　↓↓↓↓　
 ipcMain.handle('create-and-send-pdf', async (event, pdfContent, date, password, recipientEmail, senderName, recipientName) => {
-    const userName = recipientName;
-    const folderPath = path.join(userDataPath, 'clientdata', encodeFileName(recipientEmail)); // PDFを保存するフォルダ
+    try {
+        const userName = encodeFileName(recipientName); // ファイル名に安全な文字列を使用
+        const folderPath = path.join(userDataPath, 'clientdata', encodeFileName(recipientEmail)); // PDFを保存するフォルダ
 
-    // PDFを作成
-    const filePath = await createPasswordProtectedPDF(pdfContent, password, userName, date, folderPath);
+        console.log('PDF作成開始:', {
+            userName,
+            folderPath,
+            recipientEmail: encodeFileName(recipientEmail)
+        });
 
+        // PDFを作成
+        const filePath = await createPasswordProtectedPDF(pdfContent, password, userName, date, folderPath);
 
-    // PDFをサーバーに送信
-    const success = await sendPDFToServer(filePath, recipientEmail, senderName, recipientName, password);
+        console.log('PDF作成完了:', filePath);
 
-    return success ? { status: 'success' } : { status: 'error' };
+        // PDFをサーバーに送信
+        const success = await sendPDFToServer(filePath, recipientEmail, senderName, recipientName, password);
+
+        return success ? { status: 'success' } : { status: 'error', error: 'Server sending failed' };
+    } catch (error) {
+        console.error('PDF作成・送信エラー:', error);
+        return { status: 'error', error: error.message };
+    }
 });
 
 async function loadQPDF() {
@@ -346,79 +356,235 @@ async function loadQPDF() {
 // qpdf.encrypt()を使用している箇所で、loadQPDF関数を呼び出し、qpdfモジュールを動的にロードします。
 
 async function createPasswordProtectedPDF(pdfContent, password, userName, date, folderPath) {
+    // ディレクトリが存在しない場合は作成
+    try {
+        if (!fs.existsSync(folderPath)) {
+            fs.mkdirSync(folderPath, { recursive: true });
+            console.log('Directory created:', folderPath);
+        }
+    } catch (error) {
+        console.error('Failed to create directory:', error);
+        throw new Error('Failed to create directory: ' + error.message);
+    }
+
     const pdfDoc = await PDFDocument.create();
 
     // Register fontkit
     pdfDoc.registerFontkit(fontkit);
 
-    // Load Japanese font
+    // Load Japanese fonts
     const fontBytes = fs.readFileSync(path.join(__dirname, 'fonts', 'NotoSansJP-Regular.ttf'));
     const customFont = await pdfDoc.embedFont(fontBytes);
+    const boldFont = customFont; // Use same font for now (could load bold variant if available)
 
-    const fontSize = 12;
-    const lineHeight = fontSize + 4;
+    const baseFontSize = 12;
+    const lineHeight = baseFontSize + 4;
     const margin = 50;
     const pageWidth = 595.28;
     const pageHeight = 841.89;
-
-    // Define wrapText function
-    function wrapText(text, font, fontSize, maxWidth) {
-        const paragraphs = text.split('\n');
-        let lines = [];
-
-        paragraphs.forEach(paragraph => {
-            let currentLine = '';
-            const words = paragraph.split('');
-
-            for (let i = 0; i < words.length; i++) {
-                const word = words[i];
-                const lineWithWord = currentLine + word;
-                const width = font.widthOfTextAtSize(lineWithWord, fontSize);
-
-                if (width > maxWidth && currentLine !== '') {
-                    lines.push(currentLine);
-                    currentLine = word;
-                } else {
-                    currentLine = lineWithWord;
-                }
-            }
-
-            if (currentLine !== '') {
-                lines.push(currentLine);
-            }
-
-            // Add empty line between paragraphs
-            lines.push('');
-        });
-
-        return lines;
-    }
-
-    // Split text into lines
     const maxWidth = pageWidth - margin * 2;
-    const lines = wrapText(pdfContent, customFont, fontSize, maxWidth);
 
     let yPosition = pageHeight - margin;
     let page = pdfDoc.addPage([pageWidth, pageHeight]);
 
-    // Draw text lines
-    lines.forEach(line => {
-        if (yPosition - lineHeight < margin) {
+    // Parse markdown content into structured elements
+    function parseMarkdownToPDF(text) {
+        if (!text) return [];
+        
+        const lines = text.split('\n');
+        const elements = [];
+        let inList = false;
+        let listItems = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            
+            // Handle headers
+            if (line.startsWith('### ')) {
+                if (inList) {
+                    elements.push({type: 'list', items: [...listItems]});
+                    listItems = [];
+                    inList = false;
+                }
+                elements.push({type: 'h3', text: line.substring(4).trim()});
+            } else if (line.startsWith('## ')) {
+                if (inList) {
+                    elements.push({type: 'list', items: [...listItems]});
+                    listItems = [];
+                    inList = false;
+                }
+                elements.push({type: 'h2', text: line.substring(3).trim()});
+            } else if (line.startsWith('# ')) {
+                if (inList) {
+                    elements.push({type: 'list', items: [...listItems]});
+                    listItems = [];
+                    inList = false;
+                }
+                elements.push({type: 'h1', text: line.substring(2).trim()});
+            }
+            // Handle list items
+            else if (line.match(/^[-*] /)) {
+                if (!inList) {
+                    inList = true;
+                }
+                listItems.push(line.substring(2).trim());
+            }
+            // Handle regular paragraphs
+            else if (line.trim() !== '') {
+                if (inList) {
+                    elements.push({type: 'list', items: [...listItems]});
+                    listItems = [];
+                    inList = false;
+                }
+                elements.push({type: 'paragraph', text: line.trim()});
+            }
+            // Handle empty lines
+            else {
+                if (inList) {
+                    elements.push({type: 'list', items: [...listItems]});
+                    listItems = [];
+                    inList = false;
+                }
+                elements.push({type: 'break'});
+            }
+        }
+        
+        // Handle remaining list items
+        if (inList && listItems.length > 0) {
+            elements.push({type: 'list', items: listItems});
+        }
+        
+        return elements;
+    }
+
+    // Function to wrap text for a given font and size
+    function wrapText(text, font, fontSize, maxWidth) {
+        const words = text.split('');
+        const lines = [];
+        let currentLine = '';
+
+        for (const char of words) {
+            const testLine = currentLine + char;
+            const width = font.widthOfTextAtSize(testLine, fontSize);
+            
+            if (width > maxWidth && currentLine !== '') {
+                lines.push(currentLine);
+                currentLine = char;
+            } else {
+                currentLine = testLine;
+            }
+        }
+        
+        if (currentLine !== '') {
+            lines.push(currentLine);
+        }
+        
+        return lines;
+    }
+
+    // Function to ensure we don't run out of space on page
+    function checkPageSpace(requiredHeight) {
+        if (yPosition - requiredHeight < margin) {
             page = pdfDoc.addPage([pageWidth, pageHeight]);
             yPosition = pageHeight - margin;
         }
+    }
 
-        if (line === '') {
-            yPosition -= lineHeight;
-        } else {
-            page.drawText(line, {
-                x: margin,
-                y: yPosition - fontSize,
-                size: fontSize,
-                font: customFont,
-                color: rgb(0, 0, 0),
-            });
-            yPosition -= lineHeight;
+    // Process bold and italic text
+    function processInlineStyles(text) {
+        // For now, just remove markdown syntax since we don't have easy way to mix fonts in pdf-lib
+        return text.replace(/\*\*(.+?)\*\*/g, '$1')  // Remove bold
+                  .replace(/\*(.+?)\*/g, '$1');      // Remove italic
+    }
+
+    // Parse the markdown content
+    const elements = parseMarkdownToPDF(pdfContent);
+
+    // Render each element
+    elements.forEach(element => {
+        switch (element.type) {
+            case 'h1':
+                checkPageSpace(24);
+                const h1Text = processInlineStyles(element.text);
+                page.drawText(h1Text, {
+                    x: margin,
+                    y: yPosition - 18,
+                    size: 18,
+                    font: boldFont,
+                    color: rgb(0, 0, 0),
+                });
+                yPosition -= 30;
+                break;
+                
+            case 'h2':
+                checkPageSpace(20);
+                const h2Text = processInlineStyles(element.text);
+                page.drawText(h2Text, {
+                    x: margin,
+                    y: yPosition - 16,
+                    size: 16,
+                    font: boldFont,
+                    color: rgb(0, 0, 0),
+                });
+                yPosition -= 26;
+                break;
+                
+            case 'h3':
+                checkPageSpace(18);
+                const h3Text = processInlineStyles(element.text);
+                page.drawText(h3Text, {
+                    x: margin,
+                    y: yPosition - 14,
+                    size: 14,
+                    font: boldFont,
+                    color: rgb(0, 0, 0),
+                });
+                yPosition -= 24;
+                break;
+                
+            case 'paragraph':
+                const paragraphText = processInlineStyles(element.text);
+                const paragraphLines = wrapText(paragraphText, customFont, baseFontSize, maxWidth);
+                
+                paragraphLines.forEach(line => {
+                    checkPageSpace(lineHeight);
+                    if (line.trim() !== '') {
+                        page.drawText(line, {
+                            x: margin,
+                            y: yPosition - baseFontSize,
+                            size: baseFontSize,
+                            font: customFont,
+                            color: rgb(0, 0, 0),
+                        });
+                    }
+                    yPosition -= lineHeight;
+                });
+                yPosition -= 6; // Extra spacing after paragraph
+                break;
+                
+            case 'list':
+                element.items.forEach(item => {
+                    const itemText = processInlineStyles(item);
+                    const itemLines = wrapText('• ' + itemText, customFont, baseFontSize, maxWidth - 20);
+                    
+                    itemLines.forEach((line, index) => {
+                        checkPageSpace(lineHeight);
+                        page.drawText(line, {
+                            x: margin + (index > 0 ? 20 : 0),
+                            y: yPosition - baseFontSize,
+                            size: baseFontSize,
+                            font: customFont,
+                            color: rgb(0, 0, 0),
+                        });
+                        yPosition -= lineHeight;
+                    });
+                });
+                yPosition -= 6; // Extra spacing after list
+                break;
+                
+            case 'break':
+                yPosition -= lineHeight;
+                break;
         }
     });
 

@@ -11,6 +11,10 @@ div#top{
 
 #transcriptionStatus {
   font-size: 0.9em;
+  padding: 8px 12px;
+  margin: 0 4px;
+  font-weight: bold;
+  align-self: center; /* ボタンと垂直位置を合わせる */
 }
 
 .running {
@@ -126,6 +130,10 @@ select {
 .top-buttons {
   padding-top: 8px;
   padding-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .top-buttons button {
@@ -138,6 +146,172 @@ select {
 
 .top-buttons button:hover {
   background-color: #bc8f8f; /* Slightly darker shade on hover */
+}
+
+.top-buttons button:disabled {
+  background-color: #cccccc; /* Gray background for disabled buttons */
+  color: #666666; /* Darker gray text */
+  cursor: not-allowed; /* Show not-allowed cursor */
+}
+
+.top-buttons button:disabled:hover {
+  background-color: #cccccc; /* Keep same gray background on hover when disabled */
+}
+
+/* Chat area regenerate button styling */
+.chat-regenerate-button {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background-color: #925425; /* Same color as other buttons */
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  z-index: 10; /* Ensure it's above other content */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* Add subtle shadow */
+}
+
+.chat-regenerate-button:hover {
+  background-color: #bc8f8f; /* Same hover color as other buttons */
+}
+
+/* Unified Transcription Control Styling */
+.transcription-control {
+  position: relative;
+  background: linear-gradient(135deg, #925425, #7a4320);
+  color: #ffffff;
+  border: none;
+  border-radius: 25px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  min-width: 160px;
+  overflow: hidden;
+}
+
+.transcription-control:hover:not(:disabled) {
+  background: linear-gradient(135deg, #bc8f8f, #a67878);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.transcription-control:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.control-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #cccccc;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.control-text {
+  font-size: 13px;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.control-icon {
+  font-size: 16px;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+/* State-specific styles */
+.transcription-control[data-state="disabled"] {
+  background: linear-gradient(135deg, #cccccc, #aaaaaa);
+  cursor: not-allowed;
+  color: #666666;
+}
+
+.transcription-control[data-state="disabled"] .status-indicator {
+  background-color: #999999;
+}
+
+.transcription-control[data-state="stopped"] {
+  background: linear-gradient(135deg, #925425, #7a4320);
+}
+
+.transcription-control[data-state="stopped"] .status-indicator {
+  background-color: #ff6b6b;
+  box-shadow: 0 0 8px rgba(255, 107, 107, 0.3);
+}
+
+.transcription-control[data-state="running"] {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  animation: pulse 2s infinite;
+}
+
+.transcription-control[data-state="running"] .status-indicator {
+  background-color: #90EE90;
+  animation: blink 1.5s infinite;
+  box-shadow: 0 0 10px rgba(144, 238, 144, 0.5);
+}
+
+.transcription-control[data-state="starting"] {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+}
+
+.transcription-control[data-state="starting"] .status-indicator {
+  background-color: #ffeb3b;
+  animation: spin 1s linear infinite;
+  box-shadow: 0 0 8px rgba(255, 235, 59, 0.4);
+}
+
+.transcription-control[data-state="warning"] {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  animation: shake 0.5s ease-in-out;
+}
+
+.transcription-control[data-state="warning"] .status-indicator {
+  background-color: #ffeb3b;
+  animation: warning-blink 0.3s infinite;
+  box-shadow: 0 0 10px rgba(255, 235, 59, 0.6);
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes warning-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
 }
 
 .button-group {
@@ -192,6 +366,26 @@ select {
   background-color: #528387; /* Slightly darker shade on hover */
 }
 
+/* Input send button - same implementation as chat-regenerate-button */
+.input-send-button {
+  position: absolute;
+  bottom: 12px;
+  right: 8px;
+  background-color: #6aafb5; /* Same color as buttonContainer buttons */
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  z-index: 10; /* Ensure it's above other content */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* Add subtle shadow */
+}
+
+.input-send-button:hover {
+  background-color: #528387; /* Same hover color as buttonContainer buttons */
+}
+
 .bottom-buttons button {
   background-color: #925425; /* Tan background for buttons */
   color: #ffffff; /* Dark brown text */
@@ -223,6 +417,7 @@ select {
   padding: 0px;
   box-sizing: border-box;
   background-color: #fdf6e7;
+  position: relative; /* 子要素の絶対位置基準点とする */
 }
 
 /* サーバーとユーザーからのメッセージのテキストエリアの基本スタイル */
@@ -306,6 +501,7 @@ select {
   display: flex;
   flex-direction: column;
   align-self: flex-end;
+  position: relative; /* 子要素の絶対位置基準点とする */
 }
 #freeInputArea p{
   align-self: flex-start;

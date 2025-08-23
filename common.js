@@ -25,6 +25,10 @@ window.AICAData.conversation_history = window.AICAData.conversation_history || [
 
 // 特殊文字をエンコードする関数
 function encodeFileName(str) {
+    if (!str || typeof str !== 'string') {
+        console.warn('encodeFileName: invalid input', str);
+        return "unknown_session";
+    }
     return str.replace(/[@]/g, '_at_')
         .replace(/[+]/g, '_plus_')
         .replace(/[.]/g, '_dot_')
@@ -35,27 +39,62 @@ function encodeFileName(str) {
 //#region 全体的なデータの準備
 // XMLデータをロード
 function loadXMLData(callback = () => { }) {
+    if (!window.electronAPI || !window.electronAPI.loadXML) {
+        console.error('electronAPI.loadXMLが利用できません');
+        alert('electronAPI.loadXMLが利用できません。アプリケーションを再起動してください。');
+        return;
+    }
+    
     window.electronAPI.loadXML()
         .then(result => {
             if (result.status === 'success') {
+                
+                // XMLデータから<parsererror>タグを削除（既存ファイルの修正用）
+                let cleanXmlData = result.data;
+                if (cleanXmlData.includes('<parsererror')) {
+                    cleanXmlData = cleanXmlData.replace(/<parsererror[^>]*>[\s\S]*?<\/parsererror>\s*/g, '');
+                    
+                    // クリーンアップしたXMLを保存
+                    if (window.electronAPI && typeof window.electronAPI.saveXML === 'function') {
+                        window.electronAPI.saveXML(cleanXmlData)
+                            .catch(err => console.error('XMLクリーンアップの保存に失敗:', err));
+                    }
+                }
+                
                 const parser = new DOMParser();
-                window.AICAData.xmlData = parser.parseFromString(result.data, 'application/xml');
-                console.log(AICAData.xmlData); // デバッグ用にXMLを出力
-                // ユーザー情報はこの時点で取得
-                AICAData.userName = AICAData.xmlData.getElementsByTagName('userName')[0].textContent;
-                AICAData.userEmail = AICAData.xmlData.getElementsByTagName('userEmail')[0].textContent;
-                AICAData.userProfile = AICAData.xmlData.getElementsByTagName('userProfile')[0].textContent;
+                window.AICAData.xmlData = parser.parseFromString(cleanXmlData, 'application/xml');
+                
+                // パースエラーをチェック
+                const parserError = AICAData.xmlData.querySelector('parsererror');
+                if (parserError) {
+                    console.error('XMLパースエラー:', parserError.textContent);
+                    alert('XMLファイルの形式が正しくありません。');
+                    // パースエラーがあってもcallbackは実行する
+                } else {
+                    // ユーザー情報はこの時点で取得
+                    try {
+                        const userNameElem = AICAData.xmlData.getElementsByTagName('userName')[0];
+                        const userEmailElem = AICAData.xmlData.getElementsByTagName('userEmail')[0];
+                        const userProfileElem = AICAData.xmlData.getElementsByTagName('userProfile')[0];
+                        
+                        AICAData.userName = userNameElem ? userNameElem.textContent : '';
+                        AICAData.userEmail = userEmailElem ? userEmailElem.textContent : '';
+                        AICAData.userProfile = userProfileElem ? userProfileElem.textContent : '';
+                    } catch (userInfoError) {
+                        console.error('ユーザー情報の取得に失敗:', userInfoError);
+                    }
+                }
 
                 callback();
 
             } else {
-                console.error('XMLデータの読み込みに失敗しました(1):', result.message);
-                alert('XMLデータの読み込みに失敗しました。');
+                console.error('XMLデータの読み込みに失敗しました:', result.message);
+                alert(`XMLデータの読み込みに失敗しました: ${result.message}`);
             }
         })
         .catch(error => {
-            console.error('XMLデータの読み込みに失敗しました(2):', error);
-            alert('XMLデータの読み込みに失敗しました。');
+            console.error('XMLデータの読み込みに失敗しました:', error);
+            alert(`XMLデータの読み込みに失敗しました: ${error.message || error}`);
         });
 }
 
@@ -120,15 +159,7 @@ function deserializeAICAData(data) {
     return data;
 }
 
-// localStorageからデータを復元
-const storedAICAData = localStorage.getItem('AICAData');
-if (storedAICAData) {
-    try {
-        window.AICAData = deserializeAICAData(JSON.parse(storedAICAData));
-    } catch (e) {
-        console.error('Failed to parse AICAData from localStorage:', e);
-    }
-}
+// localStorageからデータを復元（各HTMLファイルで個別に実行）
 
 //#endregion 全体的なデータの準備
 
@@ -259,16 +290,52 @@ function fetchSessionData(filePath) {
 }
 // クライアントドロップダウンを設定
 function populateClientDropdown() {
-    if (document.getElementById("clientDropdown")) {
-        const clientDropdown = document.getElementById("clientDropdown");
-        const clients = AICAData.xmlData.getElementsByTagName("Client");
+    const clientDropdown = document.getElementById("clientDropdown");
+    
+    if (!clientDropdown) {
+        console.error('clientDropdown要素が見つかりません');
+        return;
+    }
+    
+    if (!AICAData || !AICAData.xmlData) {
+        console.error('AICAData.xmlDataがnullまたは未定義です');
+        return;
+    }
+    
+    const clients = AICAData.xmlData.getElementsByTagName("Client");
+    
+    if (clients.length === 0) {
+        console.warn('Clientタグが見つかりません');
+        return;
+    }
 
-        // クライアント名をプルダウンに追加
-        for (let i = 0; i < clients.length; i++) {
+    // 既存のオプションをクリア（デフォルトオプション以外）
+    while (clientDropdown.children.length > 1) {
+        clientDropdown.removeChild(clientDropdown.lastChild);
+    }
+
+    // クライアント名をプルダウンに追加
+    for (let i = 0; i < clients.length; i++) {
+        const clientNameElem = clients[i].getElementsByTagName("ClientName")[0];
+        
+        if (clientNameElem && clientNameElem.textContent.trim()) {
             let option = document.createElement("option");
             option.value = i;
-            option.text = clients[i].getElementsByTagName("ClientName")[0].textContent;
+            option.text = clientNameElem.textContent.trim();
             clientDropdown.appendChild(option);
+        }
+    }
+
+    // 保存されているselectedClientの選択状態を復元
+    if (AICAData.selectedClient !== "") {
+        clientDropdown.value = AICAData.selectedClient;
+        // ui-smpl.htmlではdisplayClientProfileは呼ばない（対応する要素がないため）
+        if (window.currentHtml === "renew_clientdata") {
+            displayClientProfile(); // プロフィールも表示
+        }
+        // ui-smpl.htmlで文字起こしコントロールを有効化
+        if (window.currentHtml === "ui-smpl" && typeof updateTranscriptionControl === 'function') {
+            updateTranscriptionControl('stopped');
         }
     }
 }
@@ -281,6 +348,26 @@ function saveNewClient() {
     const newClientName = document.getElementById("newClientNameInput").value;
     const newClientEmail = document.getElementById("newClientEmailInput").value;
     const newClientPassword = document.getElementById("newClientPasswordInput").value;
+    
+    // 入力値の検証
+    if (!newClientName || newClientName.trim() === "") {
+        alert("クライアント名を入力してください。");
+        return;
+    }
+    
+    // 重複Emailアドレスのチェック
+    if (newClientEmail && newClientEmail.trim() !== "") {
+        const existingClients = AICAData.xmlData.getElementsByTagName("Client");
+        for (let i = 0; i < existingClients.length; i++) {
+            const existingEmailElem = existingClients[i].getElementsByTagName("ClientEmail")[0];
+            if (existingEmailElem && existingEmailElem.textContent === newClientEmail.trim()) {
+                const existingClientName = existingClients[i].getElementsByTagName("ClientName")[0].textContent;
+                alert(`このEmailアドレス（${newClientEmail}）は既に「${existingClientName}」で登録されています。\n別のEmailアドレスを入力してください。`);
+                return;
+            }
+        }
+    }
+    
     if (newClientName) {
         const newClient = AICAData.xmlData.createElement("Client");
         const newClientNameElem = AICAData.xmlData.createElement("ClientName");
@@ -343,7 +430,7 @@ function displayClientProfile() {
     const sessionDetails = document.getElementById("sessionDetails");  // タブと内容を非表示にするため
 
     // 「クライアントを選択して下さい」の場合は情報をクリアして非表示に
-    if (AICAData.selectedClient === "") {
+    if (AICAData.selectedClient === "" || AICAData.selectedClient === null || AICAData.selectedClient === undefined) {
         profileBox.value = "";
         memoBox.value = "";
         emailInput.value = "";
@@ -352,6 +439,14 @@ function displayClientProfile() {
         document.getElementById("conversationData").value = "";
         document.getElementById("summaryData").value = "";
         document.getElementById("feedbackData").value = "";
+
+        // マークダウンプレビューもクリア
+        if (document.getElementById("summaryDataPreview")) {
+            document.getElementById("summaryDataPreview").innerHTML = "";
+        }
+        if (document.getElementById("feedbackDataPreview")) {
+            document.getElementById("feedbackDataPreview").innerHTML = "";
+        }
 
         // プロフィールとセッション部分を非表示
         clientInfoSection.style.display = "none";
@@ -374,6 +469,11 @@ function displayClientProfile() {
     const passwordElem = client.getElementsByTagName("PDF_Password")[0];
     passwordInput.value = passwordElem ? passwordElem.textContent : "";
 
+    // 表示エリアも更新（renew_clientdata.htmlの新しいデザイン用）
+    if (typeof updateClientInfoDisplays === 'function') {
+        updateClientInfoDisplays();
+    }
+
     populateSessionDropdown();
 
     // プロフィールとセッション部分を表示
@@ -390,13 +490,28 @@ function saveClientEmailAndPassword() {
         const passwordInput = document.getElementById("pdfPassword");
         const clients = AICAData.xmlData.getElementsByTagName("Client");
         const client = clients[AICAData.selectedClient];
+        const newEmail = emailInput.value.trim();
+
+        // 重複Emailアドレスのチェック（現在のクライアント以外で）
+        if (newEmail !== "") {
+            for (let i = 0; i < clients.length; i++) {
+                if (i != AICAData.selectedClient) { // 現在のクライアント以外をチェック
+                    const existingEmailElem = clients[i].getElementsByTagName("ClientEmail")[0];
+                    if (existingEmailElem && existingEmailElem.textContent === newEmail) {
+                        const existingClientName = clients[i].getElementsByTagName("ClientName")[0].textContent;
+                        alert(`このEmailアドレス（${newEmail}）は既に「${existingClientName}」で登録されています。\n別のEmailアドレスを入力してください。`);
+                        return;
+                    }
+                }
+            }
+        }
 
         let emailElem = client.getElementsByTagName("ClientEmail")[0];
         if (!emailElem) {
             emailElem = AICAData.xmlData.createElement("ClientEmail");
             client.appendChild(emailElem);
         }
-        emailElem.textContent = emailInput.value;
+        emailElem.textContent = newEmail;
 
         let passwordElem = client.getElementsByTagName("PDF_Password")[0];
         if (!passwordElem) {
@@ -435,6 +550,123 @@ function saveClientMemo() {
         }
         memoElem.textContent = memoBox.value;  // メモの内容を更新
         saveXMLData();  // 保存
+    }
+}
+
+// クライアントを削除
+function deleteClient() {
+    if (AICAData.selectedClient === "" || AICAData.selectedClient === null) {
+        alert("削除するクライアントが選択されていません。");
+        return;
+    }
+
+    const clients = AICAData.xmlData.getElementsByTagName("Client");
+    const selectedClientIndex = parseInt(AICAData.selectedClient);
+    
+    if (selectedClientIndex < 0 || selectedClientIndex >= clients.length) {
+        alert("無効なクライアントが選択されています。");
+        return;
+    }
+
+    const clientToDelete = clients[selectedClientIndex];
+    const clientName = clientToDelete.getElementsByTagName("ClientName")[0].textContent;
+    const clientEmail = clientToDelete.getElementsByTagName("ClientEmail")[0]?.textContent || "未設定";
+
+    // 確認ダイアログを表示
+    const confirmMessage = `以下のクライアントとそのすべてのセッションデータを削除します：\n\n` +
+                          `クライアント名: ${clientName}\n` +
+                          `Email: ${clientEmail}\n\n` +
+                          `この操作は取り消せません。本当に削除しますか？`;
+
+    if (confirm(confirmMessage)) {
+        try {
+            // セッションファイルの削除処理
+            const sessions = clientToDelete.getElementsByTagName("Session");
+            const deletePromises = [];
+
+            for (let i = 0; i < sessions.length; i++) {
+                const filePathElem = sessions[i].getElementsByTagName("FilePath")[0];
+                if (filePathElem) {
+                    const filePath = filePathElem.textContent;
+                    deletePromises.push(window.electronAPI.deleteSessionFile(filePath));
+                }
+            }
+
+            // すべてのセッションファイルを削除
+            Promise.all(deletePromises).then(results => {
+                let failedDeletions = 0;
+                results.forEach((result, index) => {
+                    if (result.status !== 'success') {
+                        failedDeletions++;
+                        console.error(`セッションファイルの削除に失敗:`, result.message);
+                    }
+                });
+
+                if (failedDeletions > 0) {
+                    console.warn(`${failedDeletions}個のセッションファイルの削除に失敗しましたが、処理を続行します。`);
+                }
+
+                // XMLからクライアントデータを削除
+                clientToDelete.parentNode.removeChild(clientToDelete);
+
+                // SelectedClientEmailをクリア（削除されたクライアントが選択されていた場合）
+                const selectedClientEmailElement = AICAData.xmlData.getElementsByTagName("SelectedClientEmail")[0];
+                if (selectedClientEmailElement && selectedClientEmailElement.textContent === clientEmail) {
+                    selectedClientEmailElement.textContent = "";
+                }
+
+                // XMLデータを保存
+                saveXMLData();
+
+                // UIをリセット
+                AICAData.selectedClient = "";
+                
+                // すべてのフィールドを先にクリア
+                const profileBox = document.getElementById("clientProfile");
+                const memoBox = document.getElementById("clientMemo");
+                const emailInput = document.getElementById("clientEmail");
+                const passwordInput = document.getElementById("pdfPassword");
+                const sessionDropdown = document.getElementById("sessionDropdown");
+                const clientInfoSection = document.getElementById("clientInfoSection");
+                const sessionDetails = document.getElementById("sessionDetails");
+
+                if (profileBox) profileBox.value = "";
+                if (memoBox) memoBox.value = "";
+                if (emailInput) emailInput.value = "";
+                if (passwordInput) passwordInput.value = "";
+                if (sessionDropdown) sessionDropdown.innerHTML = '<option value="">セッションを選択してください</option>';
+                if (document.getElementById("conversationData")) document.getElementById("conversationData").value = "";
+                if (document.getElementById("summaryData")) document.getElementById("summaryData").value = "";
+                if (document.getElementById("feedbackData")) document.getElementById("feedbackData").value = "";
+
+                // マークダウンプレビューをクリア
+                if (document.getElementById("summaryDataPreview")) document.getElementById("summaryDataPreview").innerHTML = "";
+                if (document.getElementById("feedbackDataPreview")) document.getElementById("feedbackDataPreview").innerHTML = "";
+
+                // プロフィールとセッション部分を非表示
+                if (clientInfoSection) clientInfoSection.style.display = "none";
+                if (sessionDetails) sessionDetails.style.display = "none";
+
+                // クライアントドロップダウンを再構築
+                const clientDropdown = document.getElementById("clientDropdown");
+                if (clientDropdown) {
+                    // ドロップダウンをクリアして再構築
+                    clientDropdown.innerHTML = '<option value="">クライアントを選択してください</option>';
+                    populateClientDropdown();
+                    // 削除後は必ず最初のオプション（空）を選択
+                    clientDropdown.value = "";
+                }
+
+                alert(`クライアント「${clientName}」が正常に削除されました。`);
+            }).catch(error => {
+                console.error('セッションファイルの削除中にエラーが発生しました:', error);
+                alert('セッションファイルの削除中にエラーが発生しましたが、クライアントデータは削除されました。');
+            });
+
+        } catch (error) {
+            console.error('クライアント削除中にエラーが発生しました:', error);
+            alert('クライアントの削除中にエラーが発生しました。');
+        }
     }
 }
 
@@ -532,7 +764,17 @@ function setSelectedClient() {
 
     // 新しいメールアドレスに更新
     console.log(AICAData.selectedClient + "を選択");
-    updateSelectedClientEmail();
+    
+    // 空の値が選択された場合は、SelectedClientEmailもクリアする
+    if (AICAData.selectedClient === "" || AICAData.selectedClient === null || AICAData.selectedClient === undefined) {
+        const selectedClientEmailElement = AICAData.xmlData.getElementsByTagName("SelectedClientEmail")[0];
+        if (selectedClientEmailElement) {
+            selectedClientEmailElement.textContent = "";
+            saveXMLData();
+        }
+    } else {
+        updateSelectedClientEmail();
+    }
 }
 
 // 選択されたクライアントの識別のためのEmail記録欄を後進
@@ -569,15 +811,24 @@ function updateSelectedClientEmail() {
 
     newEmail = client.getElementsByTagName("ClientEmail")[0].textContent;
 
+    console.log(`選択クライアント: ${clientName}, Email: "${newEmail}"`);
+
     // もし該当するClientが見つかり、Emailが設定されている場合のみ更新
-    if (newEmail) {
+    if (newEmail && newEmail.trim() !== "") {
         const selectedClientEmailElement = AICAData.xmlData.getElementsByTagName("SelectedClientEmail")[0];
         selectedClientEmailElement.textContent = newEmail;
 
         // 更新後のXMLデータを保存（必要に応じて）
         saveXMLData();
+        console.log(`SelectedClientEmailを"${newEmail}"に更新しました`);
     } else {
-        console.log("該当するクライアントが見つからないか、Emailが設定されていません。");
+        console.log(`警告: ${clientName}のEmailが空です。SelectedClientEmailは更新されません。`);
+        
+        // Emailが空の場合、SelectedClientEmailもクリアする
+        const selectedClientEmailElement = AICAData.xmlData.getElementsByTagName("SelectedClientEmail")[0];
+        selectedClientEmailElement.textContent = "";
+        saveXMLData();
+        console.log("SelectedClientEmailをクリアしました");
     }
 }
 
@@ -656,11 +907,29 @@ function displaySessionData() {
 // セッションデータを保存 renew_clientData.html
 function saveSessionData() {
 
-    if (window.currentHtml == "finish") {
+    if (window.currentHtml == "finish" || window.currentHtml == "renew_clientdata") {
         // セッションデータを更新
-        AICAData.sessionDataXML.getElementsByTagName("ConversationData")[0].textContent = document.getElementById("conversationData").value;
-        AICAData.sessionDataXML.getElementsByTagName("Summary")[0].textContent = document.getElementById("summaryData").value;
-        AICAData.sessionDataXML.getElementsByTagName("CoachingFeedback")[0].textContent = document.getElementById("feedbackData").value;
+        const conversationDataElem = document.getElementById("conversationData");
+        const summaryDataElem = document.getElementById("summaryData");
+        const feedbackDataElem = document.getElementById("feedbackData");
+        
+        // window.AICADataまたはAICADataを使用してアクセス
+        const sessionDataXML = window.AICAData ? window.AICAData.sessionDataXML : AICAData.sessionDataXML;
+        
+        if (conversationDataElem && sessionDataXML && sessionDataXML.getElementsByTagName("ConversationData")[0]) {
+            sessionDataXML.getElementsByTagName("ConversationData")[0].textContent = conversationDataElem.value;
+            console.log('Updated ConversationData');
+        }
+        if (summaryDataElem && sessionDataXML && sessionDataXML.getElementsByTagName("Summary")[0]) {
+            sessionDataXML.getElementsByTagName("Summary")[0].textContent = summaryDataElem.value;
+            console.log('Updated Summary');
+        }
+        if (feedbackDataElem && sessionDataXML && sessionDataXML.getElementsByTagName("CoachingFeedback")[0]) {
+            sessionDataXML.getElementsByTagName("CoachingFeedback")[0].textContent = feedbackDataElem.value;
+            console.log('Updated CoachingFeedback');
+        }
+        
+        console.log('Session data updated in XML for:', window.currentHtml);
     }
     saveSessionDataXML();
 
@@ -679,15 +948,18 @@ function displayUserData() {
 }
 
 function saveSessionDataXML() {
-    if (AICAData.selectedSession !== "") {
-        const sessions = AICAData.xmlData.getElementsByTagName("Client")[AICAData.selectedClient].getElementsByTagName("Session");
+    // window.AICADataまたはAICADataを使用してアクセス
+    const aicaData = window.AICAData || AICAData;
+    
+    if (aicaData.selectedSession !== "") {
+        const sessions = aicaData.xmlData.getElementsByTagName("Client")[aicaData.selectedClient].getElementsByTagName("Session");
 
-        const filePathElem = sessions[AICAData.selectedSession].getElementsByTagName("FilePath")[0];
+        const filePathElem = sessions[aicaData.selectedSession].getElementsByTagName("FilePath")[0];
         if (filePathElem) {
             const filePath = filePathElem.textContent;
             // セッションデータを保存
             const serializer = new XMLSerializer();
-            const sessionXMLString = serializer.serializeToString(AICAData.sessionDataXML);
+            const sessionXMLString = serializer.serializeToString(aicaData.sessionDataXML);
 
             if (window.electronAPI && typeof window.electronAPI.saveSession === 'function') {
                 console.log("saving sessionXMLString: " + sessionXMLString);
@@ -727,26 +999,46 @@ async function findLatestSessionClientData(callback = () => { }) {
     } else {
         loadXMLData();
     }
-    // xmlDataから <SelectedClientEmail> タグを取得
-    const selectedClientEmailElement = window.AICAData.xmlData.getElementsByTagName('SelectedClientEmail')[0];
-
-    // タグが存在し、かつテキストがある場合はその値を使い、
-    // それ以外の場合は空文字列を代入する
-    AICAData.selectedClientEmail = selectedClientEmailElement
-        ? (selectedClientEmailElement.textContent || '').trim()
-        : '';    // クライアントを特定
-
+    
     const clients = window.AICAData.xmlData.getElementsByTagName('Client');
     let client = null;
-    for (let i = 0; i < clients.length; i++) {
-        const emailElem = clients[i].getElementsByTagName('ClientEmail')[0];
-        if (emailElem && emailElem.textContent === window.AICAData.selectedClientEmail) {
-            client = clients[i];
-            break;
+    let clientIndex = -1;
+
+    // まず、selectedClientが数値として設定されているかチェック（インデックスとして）
+    if (AICAData.selectedClient && AICAData.selectedClient !== "" && !isNaN(parseInt(AICAData.selectedClient))) {
+        clientIndex = parseInt(AICAData.selectedClient);
+        if (clientIndex >= 0 && clientIndex < clients.length) {
+            client = clients[clientIndex];
+            console.log(`selectedClientインデックス ${clientIndex} でクライアントが見つかりました`);
+        }
+    }
+
+    // インデックスでクライアントが見つからない場合、SelectedClientEmailで検索
+    if (!client) {
+        // xmlDataから <SelectedClientEmail> タグを取得
+        const selectedClientEmailElement = window.AICAData.xmlData.getElementsByTagName('SelectedClientEmail')[0];
+
+        // タグが存在し、かつテキストがある場合はその値を使い、
+        // それ以外の場合は空文字列を代入する
+        AICAData.selectedClientEmail = selectedClientEmailElement
+            ? (selectedClientEmailElement.textContent || '').trim()
+            : '';
+
+        for (let i = 0; i < clients.length; i++) {
+            const emailElem = clients[i].getElementsByTagName('ClientEmail')[0];
+            if (emailElem && emailElem.textContent === window.AICAData.selectedClientEmail) {
+                client = clients[i];
+                clientIndex = i;
+                console.log(`selectedClientEmail ${window.AICAData.selectedClientEmail} でクライアントが見つかりました`);
+                break;
+            }
         }
     }
 
     if (client) {
+        // selectedClientインデックスを正しく設定
+        AICAData.selectedClient = clientIndex.toString();
+        
         // クライアント名を表示
         const clientName = client.getElementsByTagName('ClientName')[0].textContent;
         const clientProfile = client.getElementsByTagName('ClientProfile')[0].textContent;
@@ -767,19 +1059,26 @@ async function findLatestSessionClientData(callback = () => { }) {
                 const sessionXML = parser.parseFromString(sessionResult.data, 'application/xml');
                 window.AICAData.sessionDataXML = sessionXML;
                 const summary = sessionXML.getElementsByTagName('Summary')[0].textContent;
+                const feedback = sessionXML.getElementsByTagName('CoachingFeedback')[0] ? 
+                    sessionXML.getElementsByTagName('CoachingFeedback')[0].textContent : "";
 
                 // クライアント情報を保持
+                const clientEmailElement = client.getElementsByTagName('ClientEmail')[0];
                 window.AICAData.clientInfo = {
-                    email: AICAData.selectedClientEmail,
+                    email: clientEmailElement ? clientEmailElement.textContent : '',
                     name: clientName,
                     profile: clientProfile,
-                    password: client.getElementsByTagName('PDF_Password')[0].textContent,
+                    password: client.getElementsByTagName('PDF_Password')[0] ? client.getElementsByTagName('PDF_Password')[0].textContent : '',
                     sessionFilePath: filePath,
                     sessionDateTime: dateTime,
                     sessionSummary: summary,
+                    sessionFeedback: feedback,
                 };
 
-                console.log("clientInfo: " + window.AICAData.clientInfo);
+                console.log("clientInfo設定完了:", window.AICAData.clientInfo);
+                console.log("Email:", window.AICAData.clientInfo.email);
+                console.log("Name:", window.AICAData.clientInfo.name);
+                console.log("Password:", window.AICAData.clientInfo.password);
 
                 callback();
             } else {

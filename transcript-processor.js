@@ -87,7 +87,7 @@ window.AICAData.conversation_history = window.AICAData.conversation_history || [
 
 // ボタン
 const freeInputButton = document.getElementById('freeInputButton');
-const regenerateButton = document.getElementById('regeberatetButton');
+const regenerateButton = document.getElementById('reGenerateButton');
 const topicResetButton = document.getElementById('topicResetButton');
 var promptUserInput;
 const feedbackButton = document.getElementById('feedback');
@@ -317,6 +317,10 @@ if (freeInputButton) {
         sendGPTRequest(postData,"chatArea",iChat);
         lastPostData_ChatArea = postData;
         console.log("advice requested");
+        
+        // テキストエリアをクリアしてフォーカスを設定
+        document.getElementById("inputFIFoot").value = "";
+        document.getElementById("inputFIFoot").focus();
     }
 }
 //----------------------
@@ -357,8 +361,31 @@ function getTranscription(mode) {
 //----------------------
 if (regenerateButton) {
     regenerateButton.onclick = function () {
+        // チャットエリアから最新のAIメッセージを削除
+        removeLatestAIMessage();
+        
         sendGPTRequest(lastPostData_ChatArea,"chatArea",iChat);
         console.log("regenerate");
+    }
+}
+
+// 最新のAIメッセージを削除する関数
+function removeLatestAIMessage() {
+    const chatArea = document.getElementById("chatArea");
+    if (!chatArea) return;
+    
+    // チャットエリア内のすべてのtextarea要素を取得
+    const textareas = chatArea.querySelectorAll('textarea');
+    
+    // 最後から順にAIクラスを持つtextareaを探す
+    for (let i = textareas.length - 1; i >= 0; i--) {
+        const textarea = textareas[i];
+        if (textarea.classList.contains('AI')) {
+            // AIメッセージを削除
+            textarea.remove();
+            console.log("Latest AI message removed");
+            break;
+        }
     }
 }
 
