@@ -14,6 +14,8 @@ window.AICAData.clientInfo = {
 };
 window.AICAData.selectedSession = window.AICAData.selectedSession || ""; // グローバル変数として保持
 window.AICAData.sessionDataXML = window.AICAData.sessionDataXML || "";       // 選択されたセッションのXMLデータ
+window.AICAData.mainScreenSelectedClient = window.AICAData.mainScreenSelectedClient || ""; // メイン画面での選択クライアント
+window.AICAData.editScreenSelectedClient = window.AICAData.editScreenSelectedClient || ""; // 編集画面での選択クライアント
 window.AICAData.userName = window.AICAData.userName || "";
 window.AICAData.userEmail = window.AICAData.userEmail || "";
 window.AICAData.userProfile = window.AICAData.userProfile || "";
@@ -328,7 +330,12 @@ function populateClientDropdown() {
 
     // 保存されているselectedClientの選択状態を復元
     if (AICAData.selectedClient !== "") {
+        // onchangeイベントを発火させずに値を設定
+        const originalOnchange = clientDropdown.onchange;
+        clientDropdown.onchange = null;
         clientDropdown.value = AICAData.selectedClient;
+        clientDropdown.onchange = originalOnchange;
+        
         // ui-smpl.htmlではdisplayClientProfileは呼ばない（対応する要素がないため）
         if (window.currentHtml === "renew_clientdata") {
             displayClientProfile(); // プロフィールも表示
@@ -765,16 +772,142 @@ function setSelectedClient() {
     // 新しいメールアドレスに更新
     console.log(AICAData.selectedClient + "を選択");
     
-    // 空の値が選択された場合は、SelectedClientEmailもクリアする
-    if (AICAData.selectedClient === "" || AICAData.selectedClient === null || AICAData.selectedClient === undefined) {
-        const selectedClientEmailElement = AICAData.xmlData.getElementsByTagName("SelectedClientEmail")[0];
-        if (selectedClientEmailElement) {
-            selectedClientEmailElement.textContent = "";
-            saveXMLData();
+    // 編集画面の場合は編集画面選択を保存
+    if (window.currentHtml === "renew_clientdata" && typeof saveEditScreenSelectedClient === 'function') {
+        saveEditScreenSelectedClient();
+        console.log('編集画面でのクライアント選択を保存しました');
+    }
+    
+    // メイン画面でクライアント変更時は即座にチャット履歴をクリア
+    if (window.currentHtml === "ui-smpl" && AICAData.selectedClient !== "") {
+        console.log('メイン画面でクライアント選択変更 - チャット履歴をクリア');
+        
+        // チャット履歴とUI表示をクリア
+        const chatArea = document.getElementById('chatArea');
+        if (chatArea) {
+            const regenerateButton = chatArea.querySelector('#reGenerateButton');
+            chatArea.innerHTML = '';
+            if (regenerateButton) {
+                chatArea.appendChild(regenerateButton);
+            }
+        }
+        
+        const exampleQuestions = document.getElementById('exampleQuestionsList');
+        if (exampleQuestions) {
+            exampleQuestions.innerHTML = '';
+        }
+        
+        // グローバル変数もクリア
+        window.AICAData.conversation_history = [];
+        window.AICAData.uiChatContent = [];
+        window.AICAData.uiExampleQuestions = "";
+        window.AICAData.currentIChatCount = 0;
+        
+        // transcript-processor.jsのiChatカウンターもリセット
+        if (typeof iChat !== 'undefined') {
+            iChat = 0;
+            console.log('Reset iChat counter to 0 for new client');
+        }
+        
+        console.log('メイン画面: クライアント変更によりチャット履歴をクリアしました');
+    }
+    
+    // SelectedClientEmailの更新はメイン画面でのみ実行（編集画面では実行しない）
+    if (window.currentHtml !== "renew_clientdata") {
+        // 空の値が選択された場合は、SelectedClientEmailもクリアする
+        if (AICAData.selectedClient === "" || AICAData.selectedClient === null || AICAData.selectedClient === undefined) {
+            const selectedClientEmailElement = AICAData.xmlData.getElementsByTagName("SelectedClientEmail")[0];
+            if (selectedClientEmailElement) {
+                selectedClientEmailElement.textContent = "";
+                saveXMLData();
+                console.log('メイン画面: SelectedClientEmailをクリアしました');
+            }
+        } else {
+            updateSelectedClientEmail();
         }
     } else {
-        updateSelectedClientEmail();
+        console.log('編集画面: SelectedClientEmailは更新しません（メイン画面専用）');
     }
+}
+
+// メイン画面でのクライアント選択を保存
+function saveMainScreenSelectedClient() {
+    const clientDropdown = document.getElementById("clientDropdown");
+    if (clientDropdown && clientDropdown.value !== "") {
+        window.AICAData.mainScreenSelectedClient = clientDropdown.value;
+        
+        // XMLにも保存
+        const clients = AICAData.xmlData.getElementsByTagName("Client");
+        if (clients[clientDropdown.value]) {
+            const clientEmail = clients[clientDropdown.value].getElementsByTagName("ClientEmail")[0];
+            const selectedClientEmailElement = AICAData.xmlData.getElementsByTagName("SelectedClientEmail")[0];
+            if (selectedClientEmailElement && clientEmail) {
+                selectedClientEmailElement.textContent = clientEmail.textContent;
+                saveXMLData();
+                console.log(`メイン画面選択クライアントを保存: ${clientDropdown.value} (${clientEmail.textContent})`);
+            }
+        }
+    }
+}
+
+// クライアント情報編集画面でのクライアント選択を保存/復元
+function saveEditScreenSelectedClient() {
+    const clientDropdown = document.getElementById("clientDropdown");
+    if (clientDropdown && clientDropdown.value !== "") {
+        window.AICAData.editScreenSelectedClient = clientDropdown.value;
+        
+        // XMLに新しい要素として保存
+        let editScreenElement = AICAData.xmlData.getElementsByTagName("EditScreenSelectedClient")[0];
+        if (!editScreenElement) {
+            editScreenElement = AICAData.xmlData.createElement("EditScreenSelectedClient");
+            const clientsElement = AICAData.xmlData.getElementsByTagName("Clients")[0];
+            clientsElement.appendChild(editScreenElement);
+        }
+        
+        const clients = AICAData.xmlData.getElementsByTagName("Client");
+        if (clients[clientDropdown.value]) {
+            const clientEmail = clients[clientDropdown.value].getElementsByTagName("ClientEmail")[0];
+            if (clientEmail) {
+                editScreenElement.textContent = clientEmail.textContent;
+                saveXMLData();
+                console.log(`編集画面選択クライアントを保存: ${clientDropdown.value} (${clientEmail.textContent})`);
+            }
+        }
+    }
+}
+
+function loadMainScreenSelectedClient() {
+    // メイン画面での選択クライアントをXMLから復元
+    const selectedClientEmailElement = AICAData.xmlData.getElementsByTagName("SelectedClientEmail")[0];
+    if (selectedClientEmailElement && selectedClientEmailElement.textContent.trim() !== "") {
+        const clients = AICAData.xmlData.getElementsByTagName("Client");
+        for (let i = 0; i < clients.length; i++) {
+            const clientEmail = clients[i].getElementsByTagName("ClientEmail")[0];
+            if (clientEmail && clientEmail.textContent === selectedClientEmailElement.textContent) {
+                window.AICAData.mainScreenSelectedClient = i.toString();
+                console.log(`メイン画面選択クライアントを復元: ${i} (${clientEmail.textContent})`);
+                return i.toString();
+            }
+        }
+    }
+    return "";
+}
+
+function loadEditScreenSelectedClient() {
+    // 編集画面での選択クライアントをXMLから復元
+    const editScreenElement = AICAData.xmlData.getElementsByTagName("EditScreenSelectedClient")[0];
+    if (editScreenElement && editScreenElement.textContent.trim() !== "") {
+        const clients = AICAData.xmlData.getElementsByTagName("Client");
+        for (let i = 0; i < clients.length; i++) {
+            const clientEmail = clients[i].getElementsByTagName("ClientEmail")[0];
+            if (clientEmail && clientEmail.textContent === editScreenElement.textContent) {
+                window.AICAData.editScreenSelectedClient = i.toString();
+                console.log(`編集画面選択クライアントを復元: ${i} (${clientEmail.textContent})`);
+                return i.toString();
+            }
+        }
+    }
+    return "";
 }
 
 // 選択されたクライアントの識別のためのEmail記録欄を後進

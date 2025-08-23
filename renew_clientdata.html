@@ -417,7 +417,35 @@
         window.isRunning = false;
         window.currentHtml = "renew_clientdata";
         window.onload = function () {
-            loadXMLData(populateClientDropdown);
+            loadXMLData(() => {
+                populateClientDropdown();
+                
+                // メイン画面からの選択クライアントを引き継ぎ
+                if (typeof loadMainScreenSelectedClient === 'function') {
+                    const mainScreenClient = loadMainScreenSelectedClient();
+                    if (mainScreenClient !== "") {
+                        const clientDropdown = document.getElementById('clientDropdown');
+                        if (clientDropdown) {
+                            console.log('編集画面: メイン画面からの選択を引き継ぎ:', mainScreenClient);
+                            // onchangeイベントを発火させずに値を設定
+                            const originalOnchange = clientDropdown.onchange;
+                            clientDropdown.onchange = null;
+                            clientDropdown.value = mainScreenClient;
+                            clientDropdown.onchange = originalOnchange;
+                            
+                            // selectedClientも更新
+                            AICAData.selectedClient = mainScreenClient;
+                            displayClientProfile(); // プロフィールも表示
+                            console.log('編集画面: 選択クライアント引き継ぎ完了');
+                        }
+                    } else {
+                        console.log('編集画面: メイン画面からの選択クライアント無し');
+                    }
+                } else {
+                    console.error('編集画面: loadMainScreenSelectedClient関数が見つかりません');
+                }
+            });
+            
             // プレビューを初期化
             setTimeout(initializePreviews, 500);
             // クライアント情報表示を初期化
@@ -452,6 +480,23 @@
         }
         // 画面切り替え
         document.getElementById('back-btn').addEventListener('click', () => {
+            // 編集画面での選択を保存（編集画面専用）
+            if (typeof saveEditScreenSelectedClient === 'function') {
+                saveEditScreenSelectedClient();
+            }
+            
+            // メイン画面の選択は変更しない（編集画面での変更は影響させない）
+            // selectedClientを元のメイン画面選択に戻す
+            if (typeof loadMainScreenSelectedClient === 'function') {
+                const mainScreenClient = loadMainScreenSelectedClient();
+                if (mainScreenClient !== "") {
+                    window.AICAData.selectedClient = mainScreenClient;
+                    console.log('編集画面→メイン画面: selectedClientをメイン画面選択に戻しました:', mainScreenClient);
+                } else {
+                    console.log('編集画面→メイン画面: メイン画面選択が見つかりません');
+                }
+            }
+            
             localStorage.setItem('AICAData', JSON.stringify(serializeAICAData(window.AICAData)));
             window.electronAPI.switchHtml('ui-smpl.html');
         });

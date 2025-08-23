@@ -34,7 +34,7 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
     <div class="center-section">
       <div id="clientSelect">
         <label for="clientDropdown">クライアント:</label>
-        <select id="clientDropdown" onchange="startNewSession()">
+        <select id="clientDropdown" onchange="setSelectedClient()">
           <option value="">クライアントを選択してセッションを開始する</option>
         </select>
       </div>
@@ -103,10 +103,16 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
   <script src="common.js"></script>
   <script>
     // localStorageからAICADataを復元（XMLデータ以外）
+    console.log('=== STARTING UI-SMPL RESTORATION ===');
     const uiStoredData = localStorage.getItem('AICAData');
+    console.log('Raw localStorage data:', uiStoredData);
     if (uiStoredData) {
       try {
         const restoredData = JSON.parse(uiStoredData);
+        console.log('Parsed localStorage data:', restoredData);
+        console.log('uiChatContent from localStorage:', restoredData.uiChatContent);
+        console.log('uiExampleQuestions from localStorage:', restoredData.uiExampleQuestions);
+        
         // XMLデータ以外の状態を復元
         window.AICAData = window.AICAData || {};
         window.AICAData.selectedClient = restoredData.selectedClient || "";
@@ -118,13 +124,20 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
         window.AICAData.allTranscription = restoredData.allTranscription || "";
         window.AICAData.mainTranscription = restoredData.mainTranscription || "";
         window.AICAData.conversation_history = restoredData.conversation_history || [];
+        window.AICAData.uiChatContent = restoredData.uiChatContent || [];
+        window.AICAData.uiExampleQuestions = restoredData.uiExampleQuestions || "";
+        window.AICAData.currentIChatCount = restoredData.currentIChatCount || 0;
         console.log('AICAData状態復元完了（XMLデータ除く）');
+        console.log('Final AICAData.uiChatContent:', window.AICAData.uiChatContent);
+        console.log('Final AICAData.uiExampleQuestions:', window.AICAData.uiExampleQuestions);
+        console.log('Final AICAData.currentIChatCount:', window.AICAData.currentIChatCount);
       } catch (e) {
         console.error('Failed to parse AICAData from localStorage:', e);
         // 復元に失敗した場合は初期化
         window.AICAData = window.AICAData || {};
       }
     } else {
+      console.log('No localStorage data found');
       // localStorageにデータがない場合は初期化
       window.AICAData = window.AICAData || {};
     }
@@ -196,8 +209,45 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
       // disabled and starting states are non-interactive
     }
 
-    function startTranscription() {
+    async function startTranscription() {
       if (window.isRunning) return;
+      
+      // クライアントが選択されているかチェック
+      if (!window.AICAData.selectedClient || window.AICAData.selectedClient === "") {
+        alert("クライアントを選択してください。");
+        return;
+      }
+      
+      // 選択されたクライアント名を取得
+      const clients = AICAData.xmlData.getElementsByTagName("Client");
+      const selectedClientIndex = parseInt(window.AICAData.selectedClient);
+      if (!clients[selectedClientIndex]) {
+        alert("選択されたクライアントが見つかりません。");
+        return;
+      }
+      
+      const clientNameElement = clients[selectedClientIndex].getElementsByTagName("ClientName")[0];
+      const clientName = clientNameElement ? clientNameElement.textContent : "不明なクライアント";
+      
+      // 確認ダイアログを表示
+      const confirmMessage = `${clientName}との会話文字起こしを開始します。\n\nよろしいですか？`;
+      const userConfirmed = confirm(confirmMessage);
+      
+      if (!userConfirmed) {
+        console.log('文字起こし開始がキャンセルされました');
+        return;
+      }
+      
+      console.log(`文字起こし開始確認: ${clientName}`);
+      
+      // 1時間以上経過している場合は新セッション開始（チャット履歴クリア）
+      if (shouldStartNewSession()) {
+        console.log('Starting new session due to 1+ hour gap');
+        await startNewSession();
+      } else {
+        console.log('Continuing existing session');
+      }
+      
       addNewSession();
       constantSaveTranscription();
       window.isRunning = true;
@@ -307,31 +357,354 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
     }
 
     window.currentHtml = "ui-smpl";
+    window.isRestoringFromScreenTransition = true; // 画面復帰フラグ
     
-    // XMLデータをロード（関数が定義されているか確認）
-    if (typeof loadXMLData === 'function') {
-        console.log('loadXMLData関数確認完了 - XMLデータロード開始');
-        loadXMLData(populateClientDropdown);
-    } else {
-        console.error('loadXMLData関数が見つかりません');
-        setTimeout(() => {
-            if (typeof loadXMLData === 'function') {
-                console.log('遅延ロード: XMLデータロード開始');
-                loadXMLData(populateClientDropdown);
+    // UI内容を復元する関数
+    function restoreUIContent() {
+      console.log('=== RESTORE UI CONTENT CALLED ===');
+      console.log('Full AICAData:', window.AICAData);
+      console.log('uiChatContent:', window.AICAData.uiChatContent);
+      console.log('conversation_history:', window.AICAData.conversation_history);
+      console.log('uiExampleQuestions:', window.AICAData.uiExampleQuestions);
+      
+      // ChatArea要素が存在するか確認
+      const chatArea = document.getElementById('chatArea');
+      console.log('chatArea element:', chatArea);
+      if (chatArea) {
+        console.log('chatArea current content:', chatArea.innerHTML.length, 'chars');
+      }
+      
+      // チャット内容の復元 - まずuiChatContentから試行
+      let chatRestored = false;
+      
+      if (window.AICAData.uiChatContent && window.AICAData.uiChatContent.length > 0) {
+        console.log('Restoring from uiChatContent, items count:', window.AICAData.uiChatContent.length);
+        const chatArea = document.getElementById('chatArea');
+        if (chatArea) {
+          // 既存の再生成ボタン以外をクリア
+          const regenerateButton = chatArea.querySelector('#reGenerateButton');
+          chatArea.innerHTML = '';
+          if (regenerateButton) {
+            chatArea.appendChild(regenerateButton);
+          }
+          
+          // チャット内容を復元
+          window.AICAData.uiChatContent.forEach((chatItem, index) => {
+            console.log(`Restoring uiChat item ${index}:`, chatItem);
+            const textarea = document.createElement('textarea');
+            textarea.readOnly = true;
+            textarea.value = chatItem.content;
+            textarea.setAttribute('rows', '1');
+            textarea.className = chatItem.classes;
+            chatArea.appendChild(textarea);
+            
+            // 高さ調整
+            if (typeof adjustTextareaHeight === 'function') {
+              adjustTextareaHeight(textarea);
             } else {
-                console.error('loadXMLData関数が依然として見つかりません');
+              textarea.style.height = 'auto';
+              textarea.style.height = textarea.scrollHeight + 'px';
             }
-        }, 100);
+          });
+          
+          console.log('チャット内容をuiChatContentから復元しました');
+          chatRestored = true;
+        } else {
+          console.error('chatArea element not found');
+        }
+      }
+      
+      // uiChatContentが無い場合、conversation_historyから復元
+      if (!chatRestored && window.AICAData.conversation_history && window.AICAData.conversation_history.length > 0) {
+        console.log('Restoring from conversation_history, items count:', window.AICAData.conversation_history.length);
+        const chatArea = document.getElementById('chatArea');
+        if (chatArea) {
+          // 既存の再生成ボタン以外をクリア
+          const regenerateButton = chatArea.querySelector('#reGenerateButton');
+          chatArea.innerHTML = '';
+          if (regenerateButton) {
+            chatArea.appendChild(regenerateButton);
+          }
+          
+          // conversation_historyから復元
+          window.AICAData.conversation_history.forEach((historyItem, index) => {
+            console.log(`Restoring conversation item ${index}:`, historyItem);
+            const textarea = document.createElement('textarea');
+            textarea.readOnly = true;
+            textarea.value = historyItem.content;
+            textarea.setAttribute('rows', '1');
+            
+            // roleに応じてクラスを設定
+            if (historyItem.role === 'user') {
+              textarea.className = `User ${Math.floor(index / 2) + 1}`;
+            } else if (historyItem.role === 'assistant') {
+              textarea.className = `AI ${Math.floor(index / 2) + 1}`;
+            }
+            
+            chatArea.appendChild(textarea);
+            
+            // 高さ調整
+            if (typeof adjustTextareaHeight === 'function') {
+              adjustTextareaHeight(textarea);
+            } else {
+              textarea.style.height = 'auto';
+              textarea.style.height = textarea.scrollHeight + 'px';
+            }
+          });
+          
+          console.log('チャット内容をconversation_historyから復元しました');
+          chatRestored = true;
+        } else {
+          console.error('chatArea element not found');
+        }
+      }
+      
+      if (!chatRestored) {
+        console.log('No chat content to restore from either source');
+      }
+      
+      // 質問提案内容の復元
+      if (window.AICAData.uiExampleQuestions) {
+        const exampleQuestions = document.getElementById('exampleQuestionsList');
+        if (exampleQuestions) {
+          exampleQuestions.innerHTML = window.AICAData.uiExampleQuestions; // textContentからinnerHTMLに変更
+          console.log('質問提案内容を復元しました');
+        } else {
+          console.error('exampleQuestionsList element not found');
+        }
+      } else {
+        console.log('No example questions to restore');
+      }
     }
+
+    // DOM完全ロード後にUI復元処理を実行
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOMContentLoaded - checking if UI restoration needed');
+      
+      // XMLデータをロード（関数が定義されているか確認）
+      if (typeof loadXMLData === 'function') {
+          console.log('loadXMLData関数確認完了 - XMLデータロード開始');
+          loadXMLData(() => {
+            populateClientDropdown();
+            
+            // メイン画面での選択クライアントを復元（編集画面での変更は無視）
+            if (typeof loadMainScreenSelectedClient === 'function') {
+              const mainScreenClient = loadMainScreenSelectedClient();
+              if (mainScreenClient !== "") {
+                const clientDropdown = document.getElementById('clientDropdown');
+                if (clientDropdown) {
+                  console.log('メイン画面復元: 編集画面の選択は無視して、メイン画面の選択を復元:', mainScreenClient);
+                  // onchangeイベントを発火させずに値を設定
+                  const originalOnchange = clientDropdown.onchange;
+                  clientDropdown.onchange = null;
+                  clientDropdown.value = mainScreenClient;
+                  clientDropdown.onchange = originalOnchange;
+                  console.log('メイン画面の選択を復元完了:', clientDropdown.value);
+                  
+                  // AICAData.selectedClientも更新（整合性を保つため）
+                  window.AICAData.selectedClient = mainScreenClient;
+                  
+                  // メイン画面での選択をXMLに再保存（編集画面での変更を上書き）
+                  if (typeof saveMainScreenSelectedClient === 'function') {
+                    saveMainScreenSelectedClient();
+                  }
+                } else {
+                  console.error('clientDropdown not found for restoration');
+                }
+              } else {
+                console.log('No main screen client selection to restore');
+              }
+            } else {
+              console.error('loadMainScreenSelectedClient function not found');
+            }
+            
+            // UI復元は保存されたチャット内容が存在する場合のみ実行
+            const hasUIContentToRestore = (window.AICAData.uiChatContent && window.AICAData.uiChatContent.length > 0) ||
+                                         (window.AICAData.conversation_history && window.AICAData.conversation_history.length > 0) ||
+                                         (window.AICAData.uiExampleQuestions);
+            
+            console.log('Has UI content to restore:', hasUIContentToRestore);
+            console.log('- uiChatContent:', window.AICAData.uiChatContent ? window.AICAData.uiChatContent.length : 0);
+            console.log('- conversation_history:', window.AICAData.conversation_history ? window.AICAData.conversation_history.length : 0);
+            console.log('- uiExampleQuestions:', !!window.AICAData.uiExampleQuestions);
+            
+            if (hasUIContentToRestore) {
+              console.log('Restoring UI content from previous screen transition');
+              // DOM要素がロードされた後に復元処理を実行
+              setTimeout(() => {
+                restoreUIContent();
+                // 復元完了後の確認とフラグリセット
+                setTimeout(() => {
+                  console.log('=== POST-RESTORATION CHECK ===');
+                  const chatArea = document.getElementById('chatArea');
+                  if (chatArea) {
+                    const textareas = chatArea.querySelectorAll('textarea');
+                    console.log('ChatArea textareas after restoration:', textareas.length);
+                    textareas.forEach((textarea, index) => {
+                      console.log(`Textarea ${index}: classes="${textarea.className}", value="${textarea.value.substring(0, 50)}..."`);
+                    });
+                    console.log('Final chatArea HTML:', chatArea.innerHTML.substring(0, 200) + '...');
+                  } else {
+                    console.error('chatArea not found in post-restoration check');
+                  }
+                  const exampleQuestions = document.getElementById('exampleQuestionsList');
+                  if (exampleQuestions) {
+                    console.log('ExampleQuestions content after restoration:', exampleQuestions.innerHTML);
+                  }
+                  // フラグを少し遅れてリセット
+                  window.isRestoringFromScreenTransition = false;
+                  console.log('=== RESTORATION PROCESS COMPLETED ===');
+                }, 50);
+              }, 100);
+            } else {
+              console.log('No UI content to restore - this is likely a fresh start');
+              window.isRestoringFromScreenTransition = false;
+            }
+          });
+      } else {
+          console.error('loadXMLData関数が見つかりません');
+          setTimeout(() => {
+              if (typeof loadXMLData === 'function') {
+                  console.log('遅延ロード: XMLデータロード開始');
+                  loadXMLData(() => {
+                    populateClientDropdown();
+                    
+                    // メイン画面での選択クライアントを復元（編集画面での変更は無視）
+                    if (typeof loadMainScreenSelectedClient === 'function') {
+                      const mainScreenClient = loadMainScreenSelectedClient();
+                      if (mainScreenClient !== "") {
+                        const clientDropdown = document.getElementById('clientDropdown');
+                        if (clientDropdown) {
+                          console.log('遅延ロード: メイン画面復元, 編集画面選択は無視:', mainScreenClient);
+                          // onchangeイベントを発火させずに値を設定
+                          const originalOnchange = clientDropdown.onchange;
+                          clientDropdown.onchange = null;
+                          clientDropdown.value = mainScreenClient;
+                          clientDropdown.onchange = originalOnchange;
+                          console.log('遅延ロード: メイン画面選択復元完了:', clientDropdown.value);
+                          
+                          // AICAData.selectedClientも更新（整合性を保つため）
+                          window.AICAData.selectedClient = mainScreenClient;
+                          
+                          // メイン画面での選択をXMLに再保存（編集画面での変更を上書き）
+                          if (typeof saveMainScreenSelectedClient === 'function') {
+                            saveMainScreenSelectedClient();
+                          }
+                        } else {
+                          console.error('遅延ロード: clientDropdown not found for restoration');
+                        }
+                      } else {
+                        console.log('遅延ロード: No main screen client selection to restore');
+                      }
+                    } else {
+                      console.error('遅延ロード: loadMainScreenSelectedClient function not found');
+                    }
+                    
+                    // UI復元は保存されたチャット内容が存在する場合のみ実行
+                    const hasUIContentToRestore = (window.AICAData.uiChatContent && window.AICAData.uiChatContent.length > 0) ||
+                                                 (window.AICAData.conversation_history && window.AICAData.conversation_history.length > 0) ||
+                                                 (window.AICAData.uiExampleQuestions);
+                    
+                    if (hasUIContentToRestore) {
+                      console.log('遅延ロード: Restoring UI content from previous screen transition');
+                      setTimeout(() => {
+                        restoreUIContent();
+                        // 復元完了後の確認とフラグリセット
+                        setTimeout(() => {
+                          console.log('=== POST-RESTORATION CHECK (DELAYED) ===');
+                          const chatArea = document.getElementById('chatArea');
+                          if (chatArea) {
+                            const textareas = chatArea.querySelectorAll('textarea');
+                            console.log('ChatArea textareas after delayed restoration:', textareas.length);
+                          }
+                          // フラグを少し遅れてリセット
+                          window.isRestoringFromScreenTransition = false;
+                        }, 50);
+                      }, 100);
+                    } else {
+                      console.log('遅延ロード: No UI content to restore - this is likely a fresh start');
+                      window.isRestoringFromScreenTransition = false;
+                    }
+                  });
+              } else {
+                  console.error('loadXMLData関数が依然として見つかりません');
+                  window.isRestoringFromScreenTransition = false;
+              }
+          }, 100);
+      }
+    });
     
-    // freeImputArea
+    // 前のセッションから1時間以上経過しているかチェック
+    function shouldStartNewSession() {
+      if (!window.AICAData.selectedClient || window.AICAData.selectedClient === "") {
+        return false; // クライアントが選択されていない場合は新セッション不要
+      }
+      
+      try {
+        const clients = AICAData.xmlData.getElementsByTagName("Client");
+        const client = clients[window.AICAData.selectedClient];
+        if (!client) return true; // クライアントが見つからない場合は新セッション開始
+        
+        const sessions = client.getElementsByTagName("Session");
+        if (sessions.length === 0) return true; // セッションが無い場合は新セッション開始
+        
+        // 最新セッションの日時を取得
+        const lastSession = sessions[sessions.length - 1];
+        const lastDateTime = lastSession.getElementsByTagName("DateTime")[0];
+        if (!lastDateTime) return true;
+        
+        const lastSessionTime = new Date(lastDateTime.textContent);
+        const currentTime = new Date();
+        const hoursDiff = (currentTime - lastSessionTime) / (1000 * 60 * 60);
+        
+        console.log(`Last session: ${lastSessionTime}, Current: ${currentTime}, Hours diff: ${hoursDiff}`);
+        
+        return hoursDiff >= 1; // 1時間以上経過していればtrue
+      } catch (error) {
+        console.error('Error checking session time:', error);
+        return true; // エラーの場合は新セッション開始
+      }
+    }
+
+    // 新しいセッションを開始（チャット履歴をクリア）
     async function startNewSession() {
-      console.log("startNewSession");
+      console.log("startNewSession called - clearing chat history for new session");
+      
       if (window.isRunning) {
         stopTranscription();
       }
       await deleteEmptySession();
       window.isRunning = false;
+      
+      // チャット履歴とUI表示をクリア
+      const chatArea = document.getElementById('chatArea');
+      if (chatArea) {
+        const regenerateButton = chatArea.querySelector('#reGenerateButton');
+        chatArea.innerHTML = '';
+        if (regenerateButton) {
+          chatArea.appendChild(regenerateButton);
+        }
+      }
+      
+      const exampleQuestions = document.getElementById('exampleQuestionsList');
+      if (exampleQuestions) {
+        exampleQuestions.innerHTML = '';
+      }
+      
+      // グローバル変数もクリア
+      window.AICAData.conversation_history = [];
+      window.AICAData.uiChatContent = [];
+      window.AICAData.uiExampleQuestions = "";
+      window.AICAData.currentIChatCount = 0;
+      
+      // transcript-processor.jsのiChatカウンターもリセット
+      if (typeof iChat !== 'undefined') {
+        iChat = 0;
+        console.log('Reset iChat counter to 0 for new session');
+      }
+      
+      console.log('startNewSession: Cleared all chat data for new client');
+      
       setSelectedClient();
       updateTranscriptionControl('stopped');
     }
@@ -380,18 +753,114 @@ prompt読み込まなくなったので、不要なものが色々残ってる�
 
     function switchTo(htmlFileName) {
       deleteEmptySession();
-      localStorage.setItem('AICAData', JSON.stringify(dataToSwitch()));
+      const dataToSave = dataToSwitch();
+      console.log('=== SWITCHING TO ===', htmlFileName);
+      console.log('Data being saved to localStorage:', dataToSave);
+      console.log('uiChatContent being saved:', dataToSave.uiChatContent);
+      console.log('uiExampleQuestions being saved:', dataToSave.uiExampleQuestions);
+      localStorage.setItem('AICAData', JSON.stringify(dataToSave));
+      console.log('Data saved to localStorage successfully');
       window.electronAPI.switchHtml(htmlFileName);
     }
 
+    // 確実にチャット履歴を保存する関数
+    function saveConversationHistory() {
+      const textareas = document.querySelectorAll('#chatArea textarea');
+      const conversationHistory = [];
+      
+      textareas.forEach(textarea => {
+        // regenerateButtonは除外
+        if (textarea.id === 'reGenerateButton') return;
+        
+        let role = null;
+        if (textarea.classList.contains('User')) {
+          role = 'user';
+        } else if (textarea.classList.contains('AI')) {
+          role = 'assistant';
+        }
+        
+        if (role && textarea.value.trim()) {
+          conversationHistory.push({
+            role: role,
+            content: textarea.value.trim()
+          });
+        }
+      });
+      
+      console.log('saveConversationHistory found items:', conversationHistory.length);
+      console.log('saveConversationHistory result:', conversationHistory);
+      return conversationHistory;
+    }
+
     function dataToSwitch() {
+      console.log('dataToSwitch called');
       window.AICAData.allTranscription = getTranscription("all");
       window.AICAData.mainTranscription = getTranscription("main");
-      return serializeAICAData(window.AICAData);
+      
+      // メイン画面での選択クライアントを保存（XMLに永続化）
+      if (typeof saveMainScreenSelectedClient === 'function') {
+        saveMainScreenSelectedClient();
+      } else {
+        console.error('saveMainScreenSelectedClient function not found');
+      }
+      
+      // チャット履歴を確実に保存
+      window.AICAData.conversation_history = saveConversationHistory();
+      
+      // UIレベルでのチャット内容を保存
+      const chatArea = document.getElementById('chatArea');
+      if (chatArea) {
+        const chatContent = [];
+        const textareas = chatArea.querySelectorAll('textarea');
+        console.log('Found textareas in chatArea:', textareas.length);
+        textareas.forEach((textarea, index) => {
+          console.log(`Textarea ${index} classes:`, Array.from(textarea.classList));
+          console.log(`Textarea ${index} value:`, textarea.value.substring(0, 50) + '...');
+          if (textarea.classList.contains('User') || textarea.classList.contains('AI')) {
+            chatContent.push({
+              type: textarea.classList.contains('User') ? 'user' : 'ai',
+              content: textarea.value,
+              classes: Array.from(textarea.classList).join(' ')
+            });
+          }
+        });
+        window.AICAData.uiChatContent = chatContent;
+        console.log('Saved chat content items:', chatContent.length);
+        console.log('Chat content:', chatContent);
+      } else {
+        console.error('chatArea not found during save');
+      }
+      
+      // iChatカウンターも保存（transcript-processor.jsのグローバル変数）
+      if (typeof iChat !== 'undefined') {
+        window.AICAData.currentIChatCount = iChat;
+        console.log('Saved iChat counter:', iChat);
+      } else {
+        console.log('iChat variable not accessible from ui-smpl.html');
+      }
+      
+      // 質問提案の内容を保存
+      const exampleQuestions = document.getElementById('exampleQuestionsList');
+      if (exampleQuestions) {
+        window.AICAData.uiExampleQuestions = exampleQuestions.innerHTML; // textContentからinnerHTMLに変更
+        console.log('Saved example questions:', exampleQuestions.innerHTML);
+      } else {
+        console.error('exampleQuestionsList not found during save');
+      }
+      
+      const serializedData = serializeAICAData(window.AICAData);
+      console.log('Serialized data keys:', Object.keys(serializedData));
+      return serializedData;
     }
 
   </script>
   <script src="./transcript-processor.js"></script>
+  <script>
+    // transcript-processor.js読み込み後のデータ確認
+    console.log('=== AFTER TRANSCRIPT-PROCESSOR.JS LOADED ===');
+    console.log('AICAData.uiChatContent after script load:', window.AICAData.uiChatContent);
+    console.log('AICAData.uiExampleQuestions after script load:', window.AICAData.uiExampleQuestions);
+  </script>
 </body>
 
 </html>

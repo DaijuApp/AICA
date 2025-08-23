@@ -82,6 +82,19 @@ window.AICAData.userProfile = window.AICAData.userProfile || "";
 window.AICAData.allTranscription = window.AICAData.allTranscription || "";
 window.AICAData.mainTranscription = window.AICAData.mainTranscription || "";
 window.AICAData.conversation_history = window.AICAData.conversation_history || [];
+// UI復元用のプロパティを保持
+window.AICAData.uiChatContent = window.AICAData.uiChatContent || [];
+window.AICAData.uiExampleQuestions = window.AICAData.uiExampleQuestions || "";
+window.AICAData.currentIChatCount = window.AICAData.currentIChatCount || 0;
+
+// iChatカウンターを復元（画面遷移から復帰する場合）
+if (window.AICAData.currentIChatCount && window.AICAData.currentIChatCount > 0) {
+    iChat = window.AICAData.currentIChatCount;
+    console.log('Restored iChat counter to:', iChat);
+} else {
+    console.log('Starting with fresh iChat counter:', iChat);
+}
+
 //window.AICAData.currentSummary = window.AICAData.currentSummary || "";// currentSummaryが必要になったらここをコメントアウト gpt.mjsも修正
 
 
